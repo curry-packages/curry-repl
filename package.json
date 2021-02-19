@@ -1,21 +1,25 @@
 {
-  "name": "curry-repl",
-  "version": "0.0.1",
-  "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
-  "synopsis": "A universal REPL which can be used on top of a Curry compiler",
-  "category": [ "Programming" ],
-  "license": "BSD-3-Clause",
-  "licenseFile": "LICENSE",
-  "dependencies": {
-    "base"           : ">=3.0.0, <4.0.0",
-    "abstract-curry" : ">=3.0.0, <4.0.0",
-    "currypath"      : ">=3.0.0, <4.0.0",
-    "directory"      : ">=3.0.0, <4.0.0",
-    "filepath"       : ">=3.0.0, <4.0.0",
-    "frontend-exec"  : ">=3.0.0, <4.0.0",
-    "io-extra"       : ">=3.0.0, <4.0.0",
-    "process"        : ">=3.0.0, <4.0.0",
-    "propertyfile"   : ">=3.0.0, <4.0.0"
-  },
-  "exportedModules": [ "REPL.Main", "REPL.Compiler" ]
+    "name": "curry-repl",
+    "version": "0.0.1",
+    "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
+    "synopsis": "A universal REPL which can be used on top of a Curry compiler",
+    "category": [ "Programming" ],
+    "license": "BSD-3-Clause",
+    "licenseFile": "LICENSE",
+    "dependencies": {
+        "base"           : ">=3.0.0, <4.0.0",
+        "abstract-curry" : ">=3.0.0, <4.0.0",
+        "currypath"      : ">=3.0.0, <4.0.0",
+        "directory"      : ">=3.0.0, <4.0.0",
+        "filepath"       : ">=3.0.0, <4.0.0",
+        "frontend-exec"  : ">=3.0.0, <4.0.0",
+        "io-extra"       : ">=3.0.0, <4.0.0",
+        "process"        : ">=3.0.0, <4.0.0",
+        "propertyfile"   : ">=3.0.0, <4.0.0"
+    },
+    "exportedModules": [ "REPL.Main", "REPL.Compiler" ],
+    "source": {
+        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/curry-repl.git",
+        "tag": "$version"
+    }
 }
