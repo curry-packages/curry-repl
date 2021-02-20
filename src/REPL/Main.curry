@@ -712,10 +712,11 @@ setOptionPath rst args = do
 
 ---------------------------------------------------------------------------
 
--- Compiles a main expression by creating a "main" module and executes it.
--- If the third argument it `True`, the generated executable is removed.
+-- Compiles a main expression by creating a "main" module.
+-- If the third argument is `True`, the generated executable is
+-- invoked and then removed.
 compileMainExpression :: ReplState -> String -> Bool -> IO Int
-compileMainExpression rst exp rmexec = do
+compileMainExpression rst exp runrmexec = do
   if safeExec rst
     then do -- check for imports of Unsafe
       unsafeused <- importUnsafeModule rst
@@ -738,17 +739,19 @@ compileMainExpression rst exp rmexec = do
                          substS mainexpmod (ccExecOpt (compiler rst))
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
-          then execCommandWithPath rst timecompilecmd []
+          then execCommandWithPath rst timecompilecmd [] >> return ()
           else do writeVerboseInfo rst 2 $ "Executing: " ++ timecompilecmd
-                  system timecompilecmd
-                  return $ Just rst
+                  system timecompilecmd >> return ()
         cleanModule rst mainexpmod
-        execcmd <- getTimeCmd rst "Execution"
-                              (unwords ["./" ++ mainexpmod, rtsArgs rst])
-        writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
-        exst <- system execcmd
-        when rmexec $ removeFileIfExists mainexpmod -- remove executable
-        return exst
+        if runrmexec
+          then do
+            execcmd <- getTimeCmd rst "Execution"
+                                  (unwords ["./" ++ mainexpmod, rtsArgs rst])
+            writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
+            ecx <- system execcmd
+            removeFileIfExists mainexpmod -- remove executable
+            return ecx
+          else return 0
 
   generateMainExpFile = do
     removeFileIfExists $ abstractCurryFileName (mainExpMod rst)
