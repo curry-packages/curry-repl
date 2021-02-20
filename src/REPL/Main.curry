@@ -137,17 +137,21 @@ repLoop rst = do
     else do getLine >>= processInput rst . strip
 
 calcPrompt :: ReplState -> String
-calcPrompt rst = subst (prompt rst)
+calcPrompt rst =
+  substS (unwords (currMod rst : addMods rst)) (prompt rst)
+
+-- Substitute `%s` in a string with a given string (first argument).
+substS :: String -> String -> String
+substS replacement = sub
  where
-  loaded = unwords (currMod rst : addMods rst)
-  subst []       = []
-  subst [c]      = [c]
-  subst (c:d:cs) = case c of
+  sub []       = []
+  sub [c]      = [c]
+  sub (c:d:cs) = case c of
     '%' -> case d of
-      '%' -> '%' : cs
-      's' -> loaded ++ subst cs
-      _   -> c : d : subst cs
-    _   -> c : subst (d:cs)
+             '%' -> '%' : cs
+             's' -> replacement ++ sub cs
+             _   -> c : d : sub cs
+    _   -> c : sub (d:cs)
 
 -- Clean resources of REPL and terminate it with exit status.
 cleanUpAndExitRepl :: ReplState -> IO ()
@@ -668,7 +672,12 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
   , "prompt            : " ++ show (prompt rst) ] ++
   (if verbose rst > 2
      then [ "prelude           : " ++ preludeName rst
-          , "main exp module   : " ++ mainExpMod rst ]
+          , "main exp module   : " ++ mainExpMod  rst
+          , "verbosity option  : " ++ ccVerbOpt  (compiler rst)
+          , "parser option     : " ++ ccParseOpt (compiler rst)
+          , "compile option    : " ++ ccCmplOpt  (compiler rst)
+          , "executable option : " ++ ccExecOpt  (compiler rst)
+          ]
      else []) ++
   [ "Further settings:"
   , unwords $
@@ -725,7 +734,8 @@ compileMainExpression rst exp rmexec = do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
         let mainexpmod = mainExpMod rst
-            compilecmd = curryCompilerCommand rst ++ " " ++ mainexpmod
+            compilecmd = curryCompilerCommand rst ++ " " ++
+                         substS mainexpmod (ccExecOpt (compiler rst))
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
           then execCommandWithPath rst timecompilecmd []
@@ -948,7 +958,8 @@ parseCurryProgram rst curryprog = do
 -- Compile a Curry program with the Curry compiler:
 compileCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
 compileCurryProgram rst curryprog = do
-  let compilecmd = curryCompilerCommand rst ++ " --compile " ++ curryprog
+  let compilecmd = curryCompilerCommand rst ++ " " ++
+                   substS curryprog (ccCmplOpt (compiler rst))
   timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
   if ccCurryPath (compiler rst)
     then execCommandWithPath rst timecompilecmd []
@@ -963,7 +974,7 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
   cmpopts = unwords $
     [ -- pass current value of "bindingoptimization" property to compiler:
       -- "-Dbindingoptimization=" ++ rcValue (rcvars rst) "bindingoptimization"
-      "-v" ++ show (transVerbose (verbose rst))
+      substS (show (transVerbose (verbose rst))) (ccVerbOpt (compiler rst))
     ] ++
     (if ccCurryPath (compiler rst)
        then []
@@ -971,10 +982,10 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
     filter notNull (map snd (cmpOpts rst)) ++
     (if null (parseOpts rst)
       then []
-      else ["--parse-options=\"" ++ parseOpts rst ++ "\""])
+      else [substS (parseOpts rst) (ccParseOpt (compiler rst))])
 
-  transVerbose n | n == 3    = 2
-                 | n >= 4    = 3
+  transVerbose n | n == 0    = 0
+                 | n <= 3    = n - 1
                  | otherwise = n
 
 --- Extract a module name, possibly prefixed by a path, from an argument,

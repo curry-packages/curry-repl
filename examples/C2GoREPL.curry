@@ -35,6 +35,10 @@ c2go = CCDescription
   (c2goHome ++ "/lib")  -- base library path
   False                 -- parser should read untyped FlatCurry
   True                  -- use CURRYPATH variable
+  "-v%s"                -- option to pass verbosity
+  ""                    -- option to pass parser options (ignored)
+  "--compile %s"        -- option to compile only
+  "%s"                  -- option to create an executable
   [stratOpt, intOpt, firstOpt]
 
 c2goBanner :: String
