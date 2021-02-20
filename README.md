@@ -68,3 +68,62 @@ Here are some examples of options and their values:
 
 The actual options are specified by data of type `CCOption`
 (see module `REPL.Compiler`).
+
+
+Requirements for Curry Compilers used by CPM
+============================================
+
+In order to use a Curry compiler together with CPM,
+it has to support some options so that CPM can interact
+with the compiler. The Curry REPL implements these options
+provided that the Curry compiler itself provides options
+about its version. If `cc` is the executable of the compiler,
+the following options must exist:
+
+* `cc --compiler-name`: Shows that name of the compiler (which occurs
+  in compiler dependencies of package specifications) and quits.
+* `cc --numeric-version`: Shows the compiler version quits.
+* `cc --base-version`: Shows the version of the base libraries implemented
+  by the compiler and quits.
+
+These options can also be combined. In this case the information
+is shown in subsequent lines, as shown in this example
+for [PAKCS](http://www.informatik.uni-kiel.de/~pakcs/):
+
+    > pakcs --compiler-name --numeric-version --base-version
+    pakcs
+    3.3.0
+    3.0.0
+
+The intermediate files produced by the compiler should be
+stored in the directory
+
+    .curry/<compiler-name>-<numeric-version>
+
+relative to the directory of the source file.
+If the source file is a hierarchical module,
+the same hierarchy is used relative to `.curry`.
+
+
+Running programs
+----------------
+
+When CPM starts a Curry system (via `cypm curry`), it sets
+the environment variable `CURRYPATH` to the load path of all
+included packages and passes the option `--nocypm` to the
+executable of the Curry system. Usually, when a Curry system
+is started, it should query CPM (by `cypm deps -p`) to get
+the value of `CURRYPATH` to load modules. The option `--nocypm`
+is intended to turn off this behavior.
+
+
+Installing executables
+----------------------
+
+If CPM installs an executable, it passes the following options
+(REPL commands) to the compiler:
+
+   > cc :set v0 :load MAINMOD :save :quit
+
+(where `v0` is replaced by `v1` in debug mode).
+The execution of this command should install the executable `MAINMOD`.
