@@ -27,11 +27,11 @@ c2goHome = "/usr/local/curry2go"
 
 c2go :: CCDescription
 c2go = CCDescription
-  "curry2go"
-  c2goBanner
-  c2goHome
-  "info@curry-lang.org"
-  "curry2go"
+  "curry2go"            -- the compiler name
+  c2goBanner            -- the banner
+  c2goHome              -- home directory of the compiler
+  "info@curry-lang.org" -- contact email
+  "curry2go"            -- compiler executable
   (c2goHome ++ "/lib")  -- base library path
   False                 -- parser should read untyped FlatCurry
   True                  -- use CURRYPATH variable
