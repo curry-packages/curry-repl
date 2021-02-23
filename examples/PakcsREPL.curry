@@ -11,7 +11,7 @@
 module PakcsREPL where
 
 import Data.List        ( intercalate )
-import System.CurryPath ( sysLibPath )
+import System.CurryPath ( inCurrySubdir, modNameToPath, sysLibPath )
 
 import REPL.Compiler
 import REPL.Main        ( mainREPL )
@@ -28,19 +28,23 @@ pakcsHome = "/usr/lib/pakcs"
 
 pakcs :: CCDescription
 pakcs = CCDescription
-  "pakcs"                     -- the compiler name
-  pakcsBanner                 -- the banner
-  pakcsHome                   -- home directory of the compiler
-  "pakcs@curry-lang.org"      -- contact email
-  (pakcsHome ++ "/bin/pakcs") -- compiler executable
-  (pakcsHome ++ "/lib")       -- base library path
-  False                       -- parser should read untyped FlatCurry
-  True                        -- use CURRYPATH variable
-  ":set v%s"                   -- option to pass verbosity
-  ":set parser %s"            -- option to pass parser options
-  ":compile %s :quit"         -- option to compile only
-  ":load %s :save :quit"      -- option to create an executable
+  "pakcs"                                 -- the compiler name
+  pakcsBanner                             -- the banner
+  pakcsHome                               -- home directory of the compiler
+  "pakcs@curry-lang.org"                  -- contact email
+  (pakcsHome ++ "/bin/pakcs")             -- compiler executable
+  (pakcsHome ++ "/lib")                   -- base library path
+  False                                   -- parser reads untyped FlatCurry
+  True                                    -- use CURRYPATH variable
+  (\s -> ":set v" ++ s)                   -- option to pass verbosity
+  (\s -> ":set parser " ++ s)             -- option to pass parser options
+  (\s -> ":compile " ++ s ++ " :quit")    -- option to compile only
+  (\s -> ":load " ++ s ++ " :save :quit") -- option to create an executable
+  cleanCmd                                -- command to clean module
   [intOpt, firstOpt]
+ where
+  cleanCmd m =
+    "/bin/rm -f " ++ inCurrySubdir m ++ ".* " ++ modNameToPath m ++ ".curry"
 
 pakcsBanner :: String
 pakcsBanner = unlines [bannerLine, bannerText, bannerLine]

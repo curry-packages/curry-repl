@@ -29,30 +29,33 @@ module REPL.Compiler where
 --- If `ccCurryPath` is `True`, then the actual load path is passed
 --- by the environment variable to the compiler, otherwise it is passed
 --- by a sequence of `-iDIR` options.
---- `ccVerbOpt` is the option to pass the verbosity to the compiler command
---- (the substring `%s` is replaced by the actual verbosity).
---- `ccParseOpt` is the option to pass further parser options to the compiler
---- command (the substring `%s` is replaced by the actual parser options).
---- `ccCmplOpt` is the option to compile a module (the name is specified
---- by `%s` in the string) without creating an executable.
---- `ccExecOpt` is the option to compile a module (the name is specified
---- by `%s` in the string) and create an executable having the same
+--- `ccVerbOpt` maps the actual verbosity to the compiler option to pass the
+--- verbosity to the compiler command.
+--- `ccParseOpt` maps the actual parser options to the compiler option
+--- to pass further parser options.
+--- `ccCmplOpt` maps the module name to the compiler option
+--- to compile a module without creating an executable.
+--- `ccExecOpt` maps the module name to the compiler option
+--- to compile a module and create an executable having the same
 --- name as the module.
+--- `ccCleanCmd` maps the module name to the system command which
+--- removes the module and all generated intermediate files.
 --- `ccOpts` is the list of additional options supported by the compiler.
 data CCDescription = CCDescription
-  { ccName      :: String         -- the name of the compiler
-  , ccBanner    :: String         -- the banner shown for the compiler
-  , ccHome      :: String         -- home directory of the compiler
-  , ccEmail     :: String         -- contact email (shown at startup)
-  , ccExec      :: String         -- the executable of the compiler
-  , ccLibPath   :: String         -- the path of the standard libraries
-  , ccTypedFC   :: Bool           -- should the parser read typed FlatCurry?
-  , ccCurryPath :: Bool           -- use CURRYPATH instead of '-i' for imports
-  , ccVerbOpt   :: String         -- option to pass verbosity
-  , ccParseOpt  :: String         -- option to pass parser options
-  , ccCmplOpt   :: String         -- option to compile only
-  , ccExecOpt   :: String         -- option to create an executable
-  , ccOpts      :: [CCOption]     -- list of options for the compiler
+  { ccName      :: String           -- the name of the compiler
+  , ccBanner    :: String           -- the banner shown for the compiler
+  , ccHome      :: String           -- home directory of the compiler
+  , ccEmail     :: String           -- contact email (shown at startup)
+  , ccExec      :: String           -- the executable of the compiler
+  , ccLibPath   :: String           -- the path of the standard libraries
+  , ccTypedFC   :: Bool             -- should the parser read typed FlatCurry?
+  , ccCurryPath :: Bool             -- use CURRYPATH instead of '-i' for imports
+  , ccVerbOpt   :: String -> String -- option to pass verbosity
+  , ccParseOpt  :: String -> String -- option to pass parser options
+  , ccCmplOpt   :: String -> String -- option to compile only
+  , ccExecOpt   :: String -> String -- option to create an executable
+  , ccCleanCmd  :: String -> String -- command to clean module and aux. files
+  , ccOpts      :: [CCOption]       -- list of options for the compiler
   }
 
 --- An option implemented by a Curry compiler.

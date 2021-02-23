@@ -193,7 +193,7 @@ importUnsafeModule rst =
 -- Compute the front-end parameters for the current state:
 currentFrontendParams :: ReplState -> FrontendParams
 currentFrontendParams rst =
-    setQuiet       True
+    setQuiet       (verbose rst == 0)
   $ setFullPath    (loadPaths rst)
   $ setExtended    (rcValue (rcvars rst) "curryextensions" /= "no")
   $ setOverlapWarn (rcValue (rcvars rst) "warnoverlapping" /= "no")
@@ -673,10 +673,11 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
   (if verbose rst > 2
      then [ "prelude           : " ++ preludeName rst
           , "main exp module   : " ++ mainExpMod  rst
-          , "verbosity option  : " ++ ccVerbOpt  (compiler rst)
-          , "parser option     : " ++ ccParseOpt (compiler rst)
-          , "compile option    : " ++ ccCmplOpt  (compiler rst)
-          , "executable option : " ++ ccExecOpt  (compiler rst)
+          , "verbosity option  : " ++ ccVerbOpt  (compiler rst) "VERB"
+          , "parser option     : " ++ ccParseOpt (compiler rst) "OPTS"
+          , "compile option    : " ++ ccCmplOpt  (compiler rst) "MOD"
+          , "executable option : " ++ ccExecOpt  (compiler rst) "MOD"
+          , "clean command     : " ++ ccCleanCmd (compiler rst) "MOD"
           ]
      else []) ++
   [ "Further settings:"
@@ -727,31 +728,32 @@ compileMainExpression rst exp runrmexec = do
     else compileProgExp
  where
   compileProgExp = do
-    ec <- generateMainExpFile
-    if ec /= 0
-      then return ec
+    ecg <- generateMainExpFile
+    if ecg /= 0
+      then return ecg
       else do
         when (verbose rst > 3) $ do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
         let mainexpmod = mainExpMod rst
             compilecmd = curryCompilerCommand rst ++ " " ++
-                         substS mainexpmod (ccExecOpt (compiler rst))
+                         (ccExecOpt (compiler rst)) mainexpmod
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
           then execCommandWithPath rst timecompilecmd [] >> return ()
           else do writeVerboseInfo rst 2 $ "Executing: " ++ timecompilecmd
                   system timecompilecmd >> return ()
+        ec <- if runrmexec
+                then do
+                  execcmd <- getTimeCmd rst "Execution"
+                               (unwords ["./" ++ mainexpmod, rtsArgs rst])
+                  writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
+                  ecx <- system execcmd
+                  removeFileIfExists mainexpmod -- remove executable
+                  return ecx
+                else return 0
         cleanModule rst mainexpmod
-        if runrmexec
-          then do
-            execcmd <- getTimeCmd rst "Execution"
-                                  (unwords ["./" ++ mainexpmod, rtsArgs rst])
-            writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
-            ecx <- system execcmd
-            removeFileIfExists mainexpmod -- remove executable
-            return ecx
-          else return 0
+        return ec
 
   generateMainExpFile = do
     removeFileIfExists $ abstractCurryFileName (mainExpMod rst)
@@ -767,9 +769,12 @@ compileMainExpression rst exp runrmexec = do
 -- Removes a Curry module and intermediate files.
 cleanModule :: ReplState -> String -> IO ()
 cleanModule rst mainmod = unless keepfiles $ do
-  system $ installDir </> "bin" </> "cleancurry " ++ mainmod
-  removeFileIfExists (mainmod ++ ".curry")
- where keepfiles = rcValue (rcvars rst) "keepfiles" == "yes"
+  writeVerboseInfo rst 2 $ "Executing: " ++ cleancmd
+  system cleancmd
+  return ()
+ where
+  keepfiles = rcValue (rcvars rst) "keepfiles" == "yes"
+  cleancmd  = ccCleanCmd (compiler rst) mainmod
 
 ---------------------------------------------------------------------------
 -- Transforming main expression into appropriate form.
@@ -953,16 +958,16 @@ substTypeVar tv def (CTApply   te1 te2) =
 -- Parse a Curry program to detect errors (for load/reload command):
 parseCurryProgram :: ReplState -> String -> IO Int
 parseCurryProgram rst curryprog = do
-  let frontendParams  = currentFrontendParams rst
-      target          = if ccTypedFC (compiler rst) then TFCY else FCY
-  catch (callFrontendWithParams target frontendParams curryprog >> return 0)
+  let frontendparams = currentFrontendParams rst
+      target         = if ccTypedFC (compiler rst) then TFCY else FCY
+  catch (callFrontendWithParams target frontendparams curryprog >> return 0)
         (\_ -> return 1)
 
 -- Compile a Curry program with the Curry compiler:
 compileCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
 compileCurryProgram rst curryprog = do
   let compilecmd = curryCompilerCommand rst ++ " " ++
-                   substS curryprog (ccCmplOpt (compiler rst))
+                   (ccCmplOpt (compiler rst)) curryprog
   timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
   if ccCurryPath (compiler rst)
     then execCommandWithPath rst timecompilecmd []
@@ -977,7 +982,7 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
   cmpopts = unwords $
     [ -- pass current value of "bindingoptimization" property to compiler:
       -- "-Dbindingoptimization=" ++ rcValue (rcvars rst) "bindingoptimization"
-      substS (show (transVerbose (verbose rst))) (ccVerbOpt (compiler rst))
+      (ccVerbOpt (compiler rst)) (show (transVerbose (verbose rst)))
     ] ++
     (if ccCurryPath (compiler rst)
        then []
@@ -985,11 +990,10 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
     filter notNull (map snd (cmpOpts rst)) ++
     (if null (parseOpts rst)
       then []
-      else [substS (parseOpts rst) (ccParseOpt (compiler rst))])
+      else [(ccParseOpt (compiler rst)) (parseOpts rst)])
 
   transVerbose n | n == 0    = 0
-                 | n <= 3    = n - 1
-                 | otherwise = n
+                 | otherwise = n - 1
 
 --- Extract a module name, possibly prefixed by a path, from an argument,
 --- or return the current module name if the argument is the empty string.
