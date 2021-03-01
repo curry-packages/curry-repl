@@ -2,7 +2,7 @@
 --- The state of the REPL.
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version March 2021
 ------------------------------------------------------------------------------
 
 module REPL.State where
@@ -88,7 +88,8 @@ loadPaths rst = "." : importPaths rst ++ libPaths rst
 
 --- Show an info message for a given verbosity level
 writeVerboseInfo :: ReplState -> Int -> String -> IO ()
-writeVerboseInfo rst lvl msg =
-  unless (verbose rst < lvl) (putStrLn msg >> hFlush stdout)
+writeVerboseInfo rst lvl msg = unless (verbose rst < lvl) $ do
+  putStrLn $ (if lvl > 1 then "INFO  " else "") ++ msg
+  hFlush stdout
 
 ------------------------------------------------------------------------------

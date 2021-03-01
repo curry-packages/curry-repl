@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version March 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -182,7 +182,7 @@ importUnsafeModule rst =
     then return True
     else do
       let acyMainModFile = abstractCurryFileName (currMod rst)
-          frontendParams = currentFrontendParams rst
+          frontendParams = currentFrontendParams rst (verbose rst <= 1)
       catch (do callFrontendWithParams ACY frontendParams (currMod rst)
                 p <- readAbstractCurryFile acyMainModFile
                 return $ containsUnsafe (imports p))
@@ -191,9 +191,9 @@ importUnsafeModule rst =
   containsUnsafe = any ("Unsafe" `isInfixOf`)
 
 -- Compute the front-end parameters for the current state:
-currentFrontendParams :: ReplState -> FrontendParams
-currentFrontendParams rst =
-    setQuiet       (verbose rst == 0)
+currentFrontendParams :: ReplState -> Bool -> FrontendParams
+currentFrontendParams rst quiet =
+    setQuiet       quiet
   $ setFullPath    (loadPaths rst)
   $ setExtended    (rcValue (rcvars rst) "curryextensions" /= "no")
   $ setOverlapWarn (rcValue (rcvars rst) "warnoverlapping" /= "no")
@@ -231,7 +231,7 @@ writeMainExpFile rst imports mtype exp =
 getAcyOfMainExpMod :: ReplState -> IO (Maybe CurryProg)
 getAcyOfMainExpMod rst = do
   let acyMainExpFile = abstractCurryFileName (mainExpMod rst)
-      frontendParams  = currentFrontendParams rst
+      frontendParams  = currentFrontendParams rst (verbose rst <= 1)
   prog <- catch (callFrontendWithParams ACY frontendParams (mainExpMod rst) >>
                  tryReadACYFile acyMainExpFile)
                 (\_ -> return Nothing)
@@ -760,10 +760,10 @@ compileMainExpression rst exp runrmexec = do
     writeSimpleMainExpFile rst exp
     getAcyOfMainExpMod rst >>=
       maybe (return 1)
-            (\cprog -> makeMainExpMonomorphic rst cprog exp >>=
+            (\cprog -> insertFreeVarsInMainExp rst cprog exp >>=
                          maybe (return 1)
                                (\ (mprog,mexp) ->
-                                  insertFreeVarsInMainExp rst mprog mexp >>=
+                                   makeMainExpMonomorphic rst mprog mexp >>=
                                   maybe (return 1) (const (return 0))))
 
 -- Removes a Curry module and intermediate files.
@@ -783,7 +783,7 @@ cleanModule rst mainmod = unless keepfiles $ do
 -- as components of the main expression so that their bindings are shown.
 -- The arguments are the AbstractCurry program of the main expression
 -- and the main expression as a string.
--- The result is Nothing if some error occurred or the transformed
+-- The result is Nothing (if some error occurred) or the transformed
 -- AbstractCurry program and expression.
 insertFreeVarsInMainExp :: ReplState -> CurryProg -> String
                         -> IO (Maybe (CurryProg, String))
@@ -861,7 +861,7 @@ breakWhereFreeClause exp =
 --- and t is not a function, then ">>= print" is added to the expression.
 --- The arguments are the AbstractCurry program of the main expression
 --- and the main expression as a string.
---- The result is Nothing if some error occurred or the transformed
+--- The result is Nothing (if some error occurred) or the transformed
 --- AbstractCurry program and expression.
 makeMainExpMonomorphic :: ReplState -> CurryProg -> String
                        -> IO (Maybe (CurryProg, String))
@@ -958,7 +958,7 @@ substTypeVar tv def (CTApply   te1 te2) =
 -- Parse a Curry program to detect errors (for load/reload command):
 parseCurryProgram :: ReplState -> String -> IO Int
 parseCurryProgram rst curryprog = do
-  let frontendparams = currentFrontendParams rst
+  let frontendparams = currentFrontendParams rst (verbose rst == 0)
       target         = if ccTypedFC (compiler rst) then TFCY else FCY
   catch (callFrontendWithParams target frontendparams curryprog >> return 0)
         (\_ -> return 1)
