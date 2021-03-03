@@ -18,6 +18,7 @@ import System.IO          ( hClose, hFlush, hPutStrLn, isEOF, stdout )
 
 import AbstractCurry.Types hiding (preludeName)
 import AbstractCurry.Files
+import AbstractCurry.Build ( ioType, stringType, unitType )
 import AbstractCurry.Select
 import System.CurryPath    ( inCurrySubdir, lookupModuleSource
                            , stripCurrySuffix )
@@ -835,7 +836,7 @@ insertFreeVarsInMainExp rst
                                  _             -> []
 
 -- Breaks a main expression into an expression and a where...free clause.
--- If the where clause is not present, this part is empty.
+-- If the where clause is not present, the `where` part is empty.
 breakWhereFreeClause :: String -> (String,String)
 breakWhereFreeClause exp =
   let revexp = reverse exp
@@ -857,8 +858,9 @@ breakWhereFreeClause exp =
 --- "Fractional" are defaulted to the types "Int" or "Float", respectively.
 --- The type of the main expression is only allowed to contain
 --- numeric constraints.
---- If the main exp has type "IO t" where t is monomorphic, t /= (),
---- and t is not a function, then ">>= print" is added to the expression.
+--- If the main exp has type "IO t" where t is monomorphic and not a function,
+--- t /= (), and `withShow` is `True`, then ">>= print" is added
+--- to the expression to print the computed value.
 --- The arguments are the AbstractCurry program of the main expression
 --- and the main expression as a string.
 --- The result is Nothing (if some error occurred) or the transformed
@@ -879,9 +881,10 @@ makeMainExpMonomorphic rst prog exp = case prog of
           when (defTy /= ty) $ writeVerboseInfo rst 2 $
             "Defaulted type of main expression: " ++
             showMonoTypeExpr False defTy
-          let mtype = showMonoTypeExpr True defTy
-              (nwexp, whereclause) = breakWhereFreeClause exp
-              mexp  = "(" ++ nwexp ++ " :: " ++ mtype ++ ") " ++ whereclause
+          let (nwexp, whereclause) = breakWhereFreeClause exp
+              (nwexpS, defTyS) = addShow nwexp defTy
+              mtype = showMonoTypeExpr True defTyS
+              mexp  = "(" ++ nwexpS ++ " :: " ++ mtype ++ ") " ++ whereclause
           writeMainExpFile rst (modsOfType defTy) (Just mtype) mexp
           when (isPolyType defTy) $ writeVerboseInfo rst 2 $
             "Type of main expression \"" ++ showMonoTypeExpr False defTy
@@ -901,25 +904,38 @@ makeMainExpMonomorphic rst prog exp = case prog of
                   maybe (return Nothing)
                         (\p -> return $ Just (p,newexp))
    where
-    newexp = if isIOReturnType ty
-               then '(' : exp ++ ") Prelude.>>= Prelude.print"
-               else exp
+    newexp = let (nwexp, whereclause) = breakWhereFreeClause exp
+             in fst (addShow nwexp ty) ++ whereclause
+
+    addShow e te = if isIOReturnType te && withShow rst
+                     then ('(' : e ++ ") Prelude.>>= Prelude.print",
+                           ioType unitType)
+                     else if isIOType te || not (withShow rst)
+                            then (e,te)
+                            else ("Prelude.show (" ++ e ++ ")", stringType)
 
 -- Defaults type variables with a numeric constraint like "Num"/"Integral" or
 -- "Fractional" to the types "Int" or "Float", respectively. Moreover,
 -- existing "Data", "Eq", "Ord", "Read", and "Show" constraints for the same
 -- type variable are removed.
--- Moreover, remaing type variables with "Data" constraints are
--- defaultet to "Prelude.Bool".
+-- Moreover, remaing type variables with "Data" and "Monad" constraints are
+-- defaulted to "Prelude.Bool" and "Prelude.IO", respectively.
 defaultQualTypeExpr :: CQualTypeExpr -> CQualTypeExpr
 defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
-  defaultData (defaultTExp ctxt (CQualType (CContext []) cty))
+  defaultMonad $ defaultData $ defaultTExp ctxt (CQualType (CContext []) cty)
  where
   defaultData qty@(CQualType (CContext dctxt) dcty) = case dctxt of
     [] -> qty
     (qtcons, CTVar tv) : cs | qtcons == ("Prelude","Data")
       -> defaultData (CQualType (CContext cs)
                         (substTypeVar tv (CTCons ("Prelude","Bool")) dcty))
+    _ -> qty
+
+  defaultMonad qty@(CQualType (CContext dctxt) dcty) = case dctxt of
+    [] -> qty
+    (qtcons, CTVar tv) : cs | qtcons == ("Prelude","Monad")
+      -> defaultMonad (CQualType (CContext cs)
+                         (substTypeVar tv (CTCons ("Prelude","IO")) dcty))
     _ -> qty
 
   defaultTExp :: [CConstraint] -> CQualTypeExpr -> CQualTypeExpr
