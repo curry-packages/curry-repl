@@ -123,7 +123,7 @@ Installing executables
 If CPM installs an executable, it passes the following options
 (REPL commands) to the compiler:
 
-   > cc :set v0 :load MAINMOD :save :quit
+    > cc :set v0 :load MAINMOD :save :quit
 
 (where `v0` is replaced by `v1` in debug mode).
 The execution of this command should install the executable `MAINMOD`.
