@@ -109,7 +109,7 @@ printHelp :: IO ()
 printHelp = putStrLn $ unlines
   [ "Invoke interactive environment:"
   , ""
-  , "    crepl <options> [ -- <run-time arguments>]"
+  , "    <repl> <options> [ -- <run-time arguments>]"
   , ""
   , "with options:"
   , ""
