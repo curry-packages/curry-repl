@@ -882,7 +882,9 @@ makeMainExpMonomorphic rst prog exp = case prog of
             "Defaulted type of main expression: " ++
             showMonoTypeExpr False defTy
           let (nwexp, whereclause) = breakWhereFreeClause exp
-              (nwexpS, defTyS) = addShow nwexp defTy
+              (nwexpS, defTyS) = if null whereclause || not (showBindings rst)
+                                   then addShow nwexp defTy
+                                   else (nwexp, defTy)
               mtype = showMonoTypeExpr True defTyS
               mexp  = "(" ++ nwexpS ++ " :: " ++ mtype ++ ") " ++ whereclause
           writeMainExpFile rst (modsOfType defTy) (Just mtype) mexp
@@ -905,7 +907,9 @@ makeMainExpMonomorphic rst prog exp = case prog of
                         (\p -> return $ Just (p,newexp))
    where
     newexp = let (nwexp, whereclause) = breakWhereFreeClause exp
-             in fst (addShow nwexp ty) ++ whereclause
+             in if null whereclause || not (showBindings rst)
+                  then fst (addShow nwexp ty) ++ whereclause
+                  else nwexp ++ whereclause
 
     addShow e te = if isIOReturnType te && withShow rst
                      then ('(' : e ++ ") Prelude.>>= Prelude.print",
