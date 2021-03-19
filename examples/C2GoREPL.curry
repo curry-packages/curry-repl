@@ -28,6 +28,7 @@ c2goHome = "/usr/local/curry2go"
 c2go :: CCDescription
 c2go = CCDescription
   "curry2go"                 -- the compiler name
+  (1,0,0)                    -- the version number
   c2goBanner                 -- the banner
   c2goHome                   -- home directory of the compiler
   "info@curry-lang.org"      -- contact email

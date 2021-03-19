@@ -27,6 +27,7 @@ main = mainREPL jucs
 jucs :: CCDescription
 jucs = CCDescription
   "jucs"                               -- the compiler name
+  (1,0,0)                              -- the version number
   jucsBanner                           -- the banner
   jucsHome                             -- home directory of the compiler
   "info@curry-lang.org"                -- contact email

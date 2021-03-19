@@ -6,7 +6,7 @@
 --- a JSON file) or statically defined in some module.
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version March 2021
 ------------------------------------------------------------------------------
 
 module REPL.Compiler where
@@ -14,6 +14,8 @@ module REPL.Compiler where
 --- The description of a Curry compiler.
 --- The name `ccName` should be a sequence of alphanumeric characters and
 --- is used for naming resource files, main modules etc.
+--- The version `ccVersion` of the compiler is used by the front end
+--- and determines auxiliary directory names.
 --- The banner `ccBanner` is shown at start up (if verbosity is not quiet).
 --- `ccHome` is the home directory of the compiler.
 --- This directory should contain a file `<ccName>rc.default`
@@ -43,6 +45,7 @@ module REPL.Compiler where
 --- `ccOpts` is the list of additional options supported by the compiler.
 data CCDescription = CCDescription
   { ccName      :: String           -- the name of the compiler
+  , ccVersion   :: (Int,Int,Int)    -- major/minor/revision version
   , ccBanner    :: String           -- the banner shown for the compiler
   , ccHome      :: String           -- home directory of the compiler
   , ccEmail     :: String           -- contact email (shown at startup)

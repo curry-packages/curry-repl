@@ -29,6 +29,7 @@ pakcsHome = "/usr/lib/pakcs"
 pakcs :: CCDescription
 pakcs = CCDescription
   "pakcs"                                 -- the compiler name
+  (3,4,0)                                 -- the version number
   pakcsBanner                             -- the banner
   pakcsHome                               -- home directory of the compiler
   "pakcs@curry-lang.org"                  -- contact email

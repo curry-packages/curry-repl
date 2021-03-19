@@ -9,18 +9,18 @@ module REPL.Main where
 
 import Control.Monad      ( when, unless )
 import Curry.Compiler.Distribution ( installDir )
-import Data.Char          ( toLower )
+import Data.Char          ( toLower, toUpper )
 import Data.List          ( intercalate, intersperse
                           , isInfixOf, isPrefixOf, nub, sort )
 import System.Environment ( getArgs, getEnv )
-import System.FilePath    ( (</>) )
+import System.FilePath    ( (</>), (<.>) )
 import System.IO          ( hClose, hFlush, hPutStrLn, isEOF, stdout )
 
 import AbstractCurry.Types hiding (preludeName)
 import AbstractCurry.Files
 import AbstractCurry.Build ( ioType, stringType, unitType )
 import AbstractCurry.Select
-import System.CurryPath    ( inCurrySubdir, lookupModuleSource
+import System.CurryPath    ( inCurrySubdir, lookupModuleSource, modNameToPath
                            , stripCurrySuffix )
 import System.Directory    ( doesDirectoryExist, doesFileExist
                            , findFileWithSuffix, getAbsolutePath
@@ -182,9 +182,9 @@ importUnsafeModule rst =
   if containsUnsafe (addMods rst)
     then return True
     else do
-      let acyMainModFile = abstractCurryFileName (currMod rst)
+      let acyMainModFile = acyFileName rst (currMod rst)
           frontendParams = currentFrontendParams rst (verbose rst <= 1)
-      catch (do callFrontendWithParams ACY frontendParams (currMod rst)
+      catch (do verbCallFrontendWithParams rst ACY frontendParams (currMod rst)
                 p <- readAbstractCurryFile acyMainModFile
                 return $ containsUnsafe (imports p))
             (\_ -> return (currMod rst /= "Prelude")) -- just to be safe
@@ -199,8 +199,36 @@ currentFrontendParams rst quiet =
   $ setExtended    (rcValue (rcvars rst) "curryextensions" /= "no")
   $ setOverlapWarn (rcValue (rcvars rst) "warnoverlapping" /= "no")
   $ setSpecials    (parseOpts rst)
+  $ setDefinitions [("__" ++ map toUpper (ccName cc) ++ "__", maj*100 + min)]
+  $ setOutDir      (compilerOutDir rst)
     defaultParams
+ where
+  cc = compiler rst
+  (maj,min,_) = ccVersion cc
 
+-- Computes the directory for auxiliary Curry files w.r.t. the current compiler.
+compilerOutDir :: ReplState -> String
+compilerOutDir rst =
+  ".curry" </> map toLower (ccName cc) ++ "-" ++
+  intercalate "." (map show [maj,min,rev])
+ where
+  cc = compiler rst
+  (maj,min,rev) = ccVersion cc
+
+-- Computes the name of the AbstractCurry file for a given module
+-- w.r.t. the current compiler
+acyFileName :: ReplState -> String -> String
+acyFileName rst prog = compilerOutDir rst </> modNameToPath prog <.> "acy"
+
+
+-- Call the front end and report the call if required by verbosity.
+verbCallFrontendWithParams :: ReplState -> FrontendTarget -> FrontendParams
+                           -> String -> IO ()
+verbCallFrontendWithParams rst target params modpath = do
+  when (verbose rst > 1) $ do
+    parsecmd <- getFrontendCall target params modpath
+    writeVerboseInfo rst 2 $ "Executing: " ++ parsecmd
+  callFrontendWithParams target params modpath
 
 -- ---------------------------------------------------------------------------
 -- Main expression file stuff
@@ -231,9 +259,10 @@ writeMainExpFile rst imports mtype exp =
 -- Return Nothing if some error occurred during parsing.
 getAcyOfMainExpMod :: ReplState -> IO (Maybe CurryProg)
 getAcyOfMainExpMod rst = do
-  let acyMainExpFile = abstractCurryFileName (mainExpMod rst)
+  let acyMainExpFile = acyFileName rst (mainExpMod rst)
       frontendParams  = currentFrontendParams rst (verbose rst <= 1)
-  prog <- catch (callFrontendWithParams ACY frontendParams (mainExpMod rst) >>
+  prog <- catch (verbCallFrontendWithParams rst ACY frontendParams
+                                            (mainExpMod rst) >>
                  tryReadACYFile acyMainExpFile)
                 (\_ -> return Nothing)
   removeFileIfExists acyMainExpFile
@@ -757,7 +786,7 @@ compileMainExpression rst exp runrmexec = do
         return ec
 
   generateMainExpFile = do
-    removeFileIfExists $ abstractCurryFileName (mainExpMod rst)
+    removeFileIfExists $ acyFileName rst (mainExpMod rst)
     writeSimpleMainExpFile rst exp
     getAcyOfMainExpMod rst >>=
       maybe (return 1)
@@ -788,9 +817,8 @@ cleanModule rst mainmod = unless keepfiles $ do
 -- AbstractCurry program and expression.
 insertFreeVarsInMainExp :: ReplState -> CurryProg -> String
                         -> IO (Maybe (CurryProg, String))
-insertFreeVarsInMainExp rst
-    cprog@(CurryProg _ _ _ _ _ _ [mfunc@(CFunc _ _ _ (CQualType _ ty) _)] _)
-    mainexp = do
+insertFreeVarsInMainExp rst cprog@(CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
+  let [mfunc@(CFunc _ _ _ (CQualType _ ty) _)] = fdecls
   let freevars           = freeVarsInFuncRule mfunc
       (exp, whereclause) = breakWhereFreeClause mainexp
   if (safeExec rst) && isIOType ty
@@ -980,7 +1008,8 @@ parseCurryProgram :: ReplState -> String -> IO Int
 parseCurryProgram rst curryprog = do
   let frontendparams = currentFrontendParams rst (verbose rst == 0)
       target         = if ccTypedFC (compiler rst) then TFCY else FCY
-  catch (callFrontendWithParams target frontendparams curryprog >> return 0)
+  catch (verbCallFrontendWithParams rst target frontendparams curryprog
+           >> return 0)
         (\_ -> return 1)
 
 -- Compile a Curry program with the Curry compiler:
