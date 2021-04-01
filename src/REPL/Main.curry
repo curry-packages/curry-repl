@@ -77,7 +77,8 @@ processArgsAndStart rst []
 processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
   | null      arg = processArgsAndStart rst args
-  -- ignore '--nocypm' or '--noreadline' (already processed by script)
+  -- ignore '--nocypm' or '--noreadline'
+  -- (since they already processed by separate script to invoke the REPL)
   | arg == "--nocypm" || arg == "--noreadline"
   = processArgsAndStart rst args
   | arg == "-V" || arg == "--version"
