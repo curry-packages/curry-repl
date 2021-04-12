@@ -11,7 +11,13 @@ The specification of the concrete compiler is provided
 as an element of type `REPL.Compiler.CCDescription`.
 The entry point of the REPL is the operation `mainREPL`
 defined in module `REPL.Main`.
-The directory `examples` contains example specifications.
+
+The directory `examples` contains example specifications
+for various Curry systems.
+
+The directory `scripts` contains a simple shell script
+to invoke a Curry REPL with appropriate path settings.
+This script needs to be adapted to the actual Curry compiler.
 
 
 Requirements for a Curry Compiler used by a REPL
