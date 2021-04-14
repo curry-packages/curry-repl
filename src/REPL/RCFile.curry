@@ -19,11 +19,18 @@ import System.FilePath   ( FilePath, (</>), (<.>) )
 import System.Directory  ( getHomeDirectory, doesFileExist, copyFile
                          , renameFile )
 import REPL.Compiler
+import REPL.PkgConfig    ( packagePath )
 import REPL.Utils        ( strip )
 
---- The location of the default rc template.
-defaultRC :: CCDescription -> FilePath
-defaultRC cd = ccHome cd </> ccName cd ++ "rc.default"
+--- Returns the location of the default rc template file.
+--- If the Curry compiler has its own, return this one, otherwise
+--- return the template from this package.
+getDefaultRC :: CCDescription -> IO FilePath
+getDefaultRC cd = do
+  let cmprc = ccHome cd </> ccName cd ++ "rc.default"
+  excmprc <- doesFileExist cmprc
+  if excmprc then return cmprc
+             else return (packagePath </> "curryrc.default")
 
 --- Location of the rc file of a user.
 --- After bootstrapping, one can also use Distribution.rcFileName
@@ -38,14 +45,13 @@ rcFileName cd = (</> "." ++ ccName cd ++ "rc") `fmap` getHomeDirectory
 readRC :: CCDescription -> IO [(String, String)]
 readRC cd = do
   rcname <- rcFileName cd
-  let rcdefname = defaultRC cd
-  rcdexists <- doesFileExist rcdefname
-  if rcdexists
-    then do
-      rcexists  <- doesFileExist rcname
-      catch (if rcexists then updateRC cd else copyFile rcdefname rcname)
-            (const $ return ())
-    else putStrLn $ "Warning: file '" ++ rcdefname ++ "' not found!"
+  rcdefname <- getDefaultRC cd
+  rcexists  <- doesFileExist rcname
+  catch (if rcexists
+           then updateRC cd rcdefname
+           else do putStrLn $ "Installing '" ++ rcname ++ "'..."
+                   copyFile rcdefname rcname)
+        (const $ return ())
   readPropertyFile rcname
 
 rcKeys :: [(String, String)] -> [String]
@@ -54,15 +60,15 @@ rcKeys = sort . map fst
 --- Reads the rc file (which must be present) and compares the definitions
 --- with the distribution rc file. If the set of variables is different,
 --- update the rc file with the distribution but keep the user's definitions.
-updateRC :: CCDescription -> IO ()
-updateRC cd = do
+updateRC :: CCDescription -> String -> IO ()
+updateRC cd defaultrc = do
   rcname    <- rcFileName cd
   userprops <- readPropertyFile rcname
-  distprops <- readPropertyFile (defaultRC cd)
+  distprops <- readPropertyFile defaultrc
   unless (rcKeys userprops == rcKeys distprops) $ do
-    putStrLn $ "Updating \"" ++ rcname ++ "\"..."
+    putStrLn $ "Updating '" ++ rcname ++ "'..."
     renameFile rcname $ rcname <.> "bak"
-    copyFile (defaultRC cd) rcname
+    copyFile defaultrc rcname
     mapM_ (\ (n, v) -> maybe (return ())
              (\uv -> unless (uv == v) $ updatePropertyFile rcname n uv)
              (lookup n userprops))

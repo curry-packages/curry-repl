@@ -11,7 +11,7 @@ import Control.Monad      ( when, unless )
 import Curry.Compiler.Distribution ( installDir )
 import Data.Char          ( toLower, toUpper )
 import Data.List          ( intercalate, intersperse
-                          , isInfixOf, isPrefixOf, nub, sort )
+                          , isInfixOf, isPrefixOf, nub, partition, sort )
 import System.Environment ( getArgs, getEnv )
 import System.FilePath    ( (</>), (<.>) )
 import System.IO          ( hClose, hFlush, hPutStrLn, isEOF, stdout )
@@ -76,22 +76,23 @@ processArgsAndStart rst []
       repLoop rst
 processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
-  | null      arg = processArgsAndStart rst args
+  | null arg
+  = processArgsAndStart rst args
   -- ignore '--nocypm' or '--noreadline'
   -- (since they already processed by separate script to invoke the REPL)
   | arg == "--nocypm" || arg == "--noreadline"
   = processArgsAndStart rst args
+  | arg == "-h" || arg == "--help" || arg == "-?"
+  = printHelp >> cleanUpAndExitRepl rst
   | arg == "-V" || arg == "--version"
   = do putStrLn (ccBanner (compiler rst))
        processArgsAndStart rst { quit = True} args
-  | arg == "--compiler-name"
-  = execCmp arg >> processArgsAndStart rst { quit = True} args
-  | arg == "--numeric-version"
-  = execCmp arg >> processArgsAndStart rst { quit = True} args
-  | arg == "--base-version"
-  = execCmp arg >> processArgsAndStart rst { quit = True} args
-  | arg == "-h" || arg == "--help" || arg == "-?"
-  = printHelp >> cleanUpAndExitRepl rst
+  | arg `elem` versionOpts -- process all version options and quit:
+  = do let (vopts,mopts) = partition (`elem` versionOpts) args
+       if null mopts
+         then do system $ unwords (ccExec (compiler rst) : arg : vopts)
+                 cleanUpAndExitRepl rst
+         else writeErrorMsg ("illegal options: " ++ unwords mopts)
   | isCommand arg = do
     let (cmdargs, more) = break isCommand args
     mbrst <- processCommand rst (tail (unwords (arg:cmdargs)))
@@ -99,7 +100,7 @@ processArgsAndStart rst (arg:args)
   | otherwise
   = writeErrorMsg ("unknown command: " ++ unwords (arg:args)) >> printHelp
  where
-  execCmp s = system $ unwords [ccExec (compiler rst), s]
+  versionOpts = ["--compiler-name", "--numeric-version", "--base-version"]
 
 --- May a `String` be a REPL command?
 isCommand :: String -> Bool

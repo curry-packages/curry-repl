@@ -54,7 +54,7 @@ to check for errors and speed up later compilations
 without re-compiling all imports.
 
 If the module name is prefixed by a path, e.g., `dir1/dir2/Mod`,
-then we change into the directory of the path (`dir1/dir2`)
+then the REPL changes into the directory of the path (`dir1/dir2`)
 and compile the main module there.
 
 
@@ -77,6 +77,22 @@ Here are some examples of options and their values:
 
 The actual options are specified by data of type `CCOption`
 (see module `REPL.Compiler`).
+
+RC file:
+--------
+
+The REPL reads on startup a compiler-specific configuration file
+which contains definitions for some options and commands,
+like a search path for additional libraries, commands to
+show or edit source files, etc. A template for such a
+configuration file is contained as `curryrc.default` in this package.
+The REPL assumes that the home directory of the Curry compiler
+contains a configuration file `CYCrc.default` if `CYC` is
+the name of the compiler. If there is none, the configuration
+file `curryrc.default` of this package is used.
+On startup, the REPL copies this file (without the suffic `.default`)
+into the user's home directory, if there is not already one, otherwise
+the file is updated if the default file contains new fields.
 
 
 Requirements for Curry Compilers used by CPM
