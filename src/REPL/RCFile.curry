@@ -3,11 +3,12 @@
 --- that is stored in $HOME/.<compiler-name>rc
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version April 2021
 ------------------------------------------------------------------------------
 
-module REPL.RCFile -- (readRC, rcValue, setRCProperty, extractRCArgs, updateRCDefs)
-  where
+module REPL.RCFile
+  ( readRC, rcValue, setRCProperty, extractRCArgs, updateRCDefs )
+ where
 
 import Control.Monad     ( unless )
 import Data.Char         ( toLower, isSpace )
@@ -36,17 +37,16 @@ rcFileName cd = (</> "." ++ ccName cd ++ "rc") `fmap` getHomeDirectory
 --- from the distribution will be copied.
 readRC :: CCDescription -> IO [(String, String)]
 readRC cd = do
+  rcname <- rcFileName cd
   let rcdefname = defaultRC cd
   rcdexists <- doesFileExist rcdefname
-  unless rcdexists $
-    error $ "Critical error: file '" ++ rcdefname ++ "' not found!"
-  rcname    <- rcFileName cd
-  rcexists  <- doesFileExist rcname
-  catch (if rcexists then updateRC cd else copyFile rcdefname rcname)
-        (const $ return ())
-  -- check again existence of user rc file:
-  newrcexists <- doesFileExist rcname
-  readPropertyFile (if newrcexists then rcname else rcdefname)
+  if rcdexists
+    then do
+      rcexists  <- doesFileExist rcname
+      catch (if rcexists then updateRC cd else copyFile rcdefname rcname)
+            (const $ return ())
+    else putStrLn $ "Warning: file '" ++ rcdefname ++ "' not found!"
+  readPropertyFile rcname
 
 rcKeys :: [(String, String)] -> [String]
 rcKeys = sort . map fst

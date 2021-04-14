@@ -55,13 +55,13 @@ mainREPL cd = do
   rst   <- initReplState cd
   ipath <- defaultImportPaths rst
   let rst1 = rst { importPaths = ipath
-                 , rcvars    = rcDefs
+                 , rcVars    = rcDefs
                  , rtsArgs   = if null rtargs then "" else unwords (tail rtargs)
                  }
   if null furtherRcDefs
    then processArgsAndStart
           rst1
-          (map strip (words (rcValue (rcvars rst1) "defaultparams")) ++
+          (map strip (words (rcValue (rcVars rst1) "defaultparams")) ++
            mainargs)
    else putStrLn $ "Error: rc property name '" ++ fst (head furtherRcDefs) ++
                    "' not found in rc file!"
@@ -166,8 +166,8 @@ processInput rst g
   | null g      = repLoop rst
   | isCommand g = do mbrst <- processCommand rst (strip (tail g))
                      maybe (repLoop (rst { exitStatus = 1 }))
-                           (\rst' -> if (quit rst') then cleanUpAndExitRepl rst'
-                                                    else repLoop rst')
+                           (\rst' -> if quit rst' then cleanUpAndExitRepl rst'
+                                                  else repLoop rst')
                            mbrst
   | otherwise   = evalExpression rst g >>= repLoop
 
@@ -197,8 +197,8 @@ currentFrontendParams :: ReplState -> Bool -> FrontendParams
 currentFrontendParams rst quiet =
     setQuiet       quiet
   $ setFullPath    (loadPaths rst)
-  $ setExtended    (rcValue (rcvars rst) "curryextensions" /= "no")
-  $ setOverlapWarn (rcValue (rcvars rst) "warnoverlapping" /= "no")
+  $ setExtended    (rcValue (rcVars rst) "curryextensions" /= "no")
+  $ setOverlapWarn (rcValue (rcVars rst) "warnoverlapping" /= "no")
   $ setSpecials    (parseOpts rst)
   $ setDefinitions [("__" ++ map toUpper (ccName cc) ++ "__", maj*100 + min)]
   $ setOutDir      (compilerOutDir rst)
@@ -339,6 +339,7 @@ replCommands =
   , ("help"       , processHelp        )
   , ("interface"  , processInterface   )
   , ("load"       , processLoad        )
+  , ("modules"    , processModules     )
   , ("programs"   , processPrograms    )
   , ("reload"     , processReload      )
   , ("quit"       , processQuit        )
@@ -419,7 +420,7 @@ processEdit rst args = do
   mbf <- findFileWithSuffix (moduleNameToPath modname) [".curry", ".lcurry"]
                             (loadPaths rst)
   editenv <- getEnv "EDITOR"
-  let editcmd  = rcValue (rcvars rst) "editcommand"
+  let editcmd  = rcValue (rcVars rst) "editcommand"
       editprog = if null editcmd then editenv else editcmd
   if null editenv && null editcmd
     then skipCommand "no editor defined"
@@ -480,10 +481,11 @@ processLoad rst args = do
       maybe (return Nothing)
         (\rst2 ->
           lookupModuleSource (loadPaths rst2) modname >>=
-          maybe
-            (skipCommand $ "source file of module "++dirmodname++" not found")
-            (\_ -> do parseCurryProgram rst2 modname
-                      return (Just rst2 { currMod = modname, addMods = [] }))
+          maybe (skipCommand $
+                   "source file of module " ++ dirmodname ++ " not found")
+                (\_ -> do parseCurryProgram rst2 modname
+                          return $
+                            Just rst2 { currMod = modname, addMods = [] })
         )
         mbrst
 
@@ -496,6 +498,10 @@ processReload rst args
   = parseCurryProgram rst (currMod rst) >> return (Just rst)
   | otherwise
   = skipCommand "superfluous argument"
+
+--- Process :modules command
+processModules :: ReplState -> String -> IO (Maybe ReplState)
+processModules rst _ = printAllLoadedModules rst >> return (Just rst)
 
 --- Process :programs command
 processPrograms :: ReplState -> String -> IO (Maybe ReplState)
@@ -529,7 +535,7 @@ processShow rst args = do
     Nothing -> skipCommand "source file not found"
     Just fn -> do
       pager <- getEnv "PAGER"
-      let rcshowcmd = rcValue (rcvars rst) "showcommand"
+      let rcshowcmd = rcValue (rcVars rst) "showcommand"
           showprog  = if not (null rcshowcmd)
                         then rcshowcmd
                         else (if null pager then "cat" else pager)
@@ -563,49 +569,76 @@ processUsedImports rst args = do
 
 printHelpOnCommands :: IO ()
 printHelpOnCommands = putStrLn $ unlines
-  [ "Commands (can be abbreviated to a prefix if unique)"
+  [ "Basic commands (commands can be abbreviated to a prefix if unique):"
+  , ""
   , ":load <prog>       - load program '<prog>.[l]curry' as main module"
-  , ":add  <m1> .. <mn> - add modules '<m1>' to '<mn>' to currently loaded modules"
   , ":reload            - recompile currently loaded modules"
-  , ":compile <prog>    - like ':load <prog>' but also compile Haskell code"
+  , ":add  <m1> .. <mn> - add modules <m1>,...,<mn> to currently loaded modules"
   , ":eval <expr>       - evaluate expression <expr>"
+  , ":save <expr>       - save executable with main expression <expr>"
+  , ":save              - save executable with main expression 'main'"
   , ":type <expr>       - show type of expression <expr>"
-  , ":programs          - show names of all Curry programs available in load path"
+  , ":quit              - leave the system"
+  , ""
+  , "Further commands:"
+  , ""
+  , ":!<command>        - execute <command> in shell"
+  , ":browse            - browse program and its imported modules"
+  , ":compile <prog>    - like ':load <prog>' but also compile program"
   , ":cd <dir>          - change current directory to <dir>"
   , ":edit              - load source of currently loaded module into editor"
   , ":edit <m>          - load source of module <m> into editor"
+  , ":fork <expr>       - fork new process evaluating <expr>"
+  , ":help              - show this message"
+  , ":interface         - show interface of currently loaded module"
+  , ":interface <m>     - show interface of module <m>"
+  , ":modules           - show currently loaded modules with source information"
+  , ":programs          - show names of Curry modules available in load path"
+  , ":set <option>      - set an option"
+  , ":set               - see help on options and current options"
   , ":show              - show currently loaded source program"
   , ":show <m>          - show source of module <m>"
   , ":source <f>        - show source of (visible!) function <f>"
   , ":source <m>.<f>    - show source of function <f> in module <m>"
-  , ":browse            - browse program and its imported modules"
-  , ":interface         - show interface of currently loaded module"
-  , ":interface <m>     - show interface of module <m>"
   , ":usedimports       - show all used imported functions/constructors"
-  , ":set <option>      - set an option"
-  , ":set               - see help on options and current options"
-  , ":save              - save executable with main expression 'main'"
-  , ":save <expr>       - save executable with main expression <expr>"
-  , ":fork <expr>       - fork new process evaluating <expr>"
-  , ":help              - show this message"
-  , ":!<command>        - execute <command> in shell"
-  , ":quit              - leave the system"
   ]
 
---- Print all Curry programs in current load path
+--- Print all Curry programs in current load path.
+--- Programs found in subdirectories are assumed to be hierarchical.
+--- To avoid loops in cyclic directory structure, we put a depth limit
+--- on the recursive search.
+printAllLoadedModules :: ReplState -> IO ()
+printAllLoadedModules rst = do
+  putStrLn "Currently loaded modules:"
+  let mods = currMod rst : addMods rst
+  mapM getSrc mods >>= putStr . unlines . map fmtSrc
+ where
+  getSrc m = lookupModuleSource (loadPaths rst) m >>=
+             return . maybe (m,"???") (\ (_,s) -> (m, s))
+
+  fmtSrc (m,s) = m ++ take (20 - length m) (repeat ' ') ++ " (from " ++ s ++ ")"
+
+--- Print all Curry programs in current load path.
+--- Programs found in subdirectories are assumed to be hierarchical.
+--- To avoid loops in cyclic directory structure, we put a depth limit
+--- on the recursive search.
 printAllLoadPathPrograms :: ReplState -> IO ()
 printAllLoadPathPrograms rst = mapM_ printDirPrograms (loadPaths rst)
  where
+  depthLimit = 10
+
   printDirPrograms dir = do
     putStrLn $ "Curry programs in directory '" ++ dir ++ "':"
-    progs <- getDirPrograms "" dir
+    progs <- getDirPrograms depthLimit "" dir
     putStrLn $ unwords $ sort $ progs
     putStrLn ""
 
-  getDirPrograms prefix dir = do
+  getDirPrograms dlimit prefix dir = do
     exdir <- doesDirectoryExist dir
-    files <- if exdir then getDirectoryContents dir else return []
-    subprogs <- mapM (\d -> getDirPrograms (prefix ++ d ++ ".") (dir </> d))
+    files <- if exdir && dlimit > 0 then getDirectoryContents dir
+                                    else return []
+    subprogs <- mapM (\d -> getDirPrograms (dlimit - 1) (prefix ++ d ++ ".")
+                                           (dir </> d))
                      (filter (\f -> let c = head f in c>='A' && c<='Z') files)
     return $ concat subprogs ++
       concatMap (\f -> let (base, sfx) = splitExtension f
@@ -717,8 +750,13 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
       , showOnOff (withShow     rst) ++ "show"
       , showOnOff (showTime     rst) ++ "time"
       ] ++ map fst (cmpOpts rst)
-  ]
- where showOnOff b = if b then "+" else "-"
+  ] ++
+  (if verbose rst > 2
+     then [ "", "Properties from rc file:" ] ++
+          map (\ (var,val) -> var ++ " = " ++ val) (rcVars rst)
+     else [])
+ where
+  showOnOff b = if b then "+" else "-"
 
 ---------------------------------------------------------------------------
 --- The default import paths of the Curry compiler.
@@ -727,7 +765,7 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
 defaultImportPaths :: ReplState -> IO [String]
 defaultImportPaths rst = do
   currypath <- getEnv "CURRYPATH"
-  let rclibs = rcValue (rcvars rst) "libraries"
+  let rclibs = rcValue (rcVars rst) "libraries"
   return $ filter (/= ".") $ splitSearchPath currypath ++ splitSearchPath rclibs
 
 defaultImportPathsWith :: ReplState -> String -> IO [String]
@@ -804,7 +842,7 @@ cleanModule rst mainmod = unless keepfiles $ do
   system cleancmd
   return ()
  where
-  keepfiles = rcValue (rcvars rst) "keepfiles" == "yes"
+  keepfiles = rcValue (rcVars rst) "keepfiles" == "yes"
   cleancmd  = ccCleanCmd (compiler rst) mainmod
 
 ---------------------------------------------------------------------------
@@ -1031,7 +1069,7 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
  where
   cmpopts = unwords $
     [ -- pass current value of "bindingoptimization" property to compiler:
-      -- "-Dbindingoptimization=" ++ rcValue (rcvars rst) "bindingoptimization"
+      -- "-Dbindingoptimization=" ++ rcValue (rcVars rst) "bindingoptimization"
       (ccVerbOpt (compiler rst)) (show (transVerbose (verbose rst)))
     ] ++
     (if ccCurryPath (compiler rst)

@@ -32,7 +32,7 @@ c2go = CCDescription
   c2goBanner                 -- the banner
   c2goHome                   -- home directory of the compiler
   "info@curry-lang.org"      -- contact email
-  "curry2go"                 -- compiler executable
+  "curry2goc"                -- compiler executable
   (c2goHome ++ "/lib")       -- base library path
   False                      -- parser should read untyped FlatCurry
   True                       -- use CURRYPATH variable

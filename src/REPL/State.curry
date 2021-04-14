@@ -20,7 +20,7 @@ import REPL.Compiler
 
 data ReplState = ReplState
   { compiler     :: CCDescription
-  , rcvars       :: [(String, String)] -- content of rc file
+  , rcVars       :: [(String, String)] -- content of rc file
   , verbose      :: Int        -- verbosity level:
                                -- 0 = errors and warnings
                                -- 1 = show frontend compilation status
@@ -54,7 +54,7 @@ initReplState cd = do
   mainmod <- getUnusedMod ("Main" ++ compilerid ++ show pid)
   return $ ReplState
     { compiler     = cd
-    , rcvars       = []
+    , rcVars       = []
     , verbose      = 1
     , libPaths     = splitSearchPath (ccLibPath cd)
     , importPaths  = []
