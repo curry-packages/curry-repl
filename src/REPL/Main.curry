@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version March 2021
+--- @version April 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -137,7 +137,12 @@ repLoop rst = do
   eof <- isEOF
   if eof
     then cleanUpAndExitRepl rst
-    else do getLine >>= processInput rst . strip
+    else do inp <- getLine >>= return . strip
+            if null inp
+              then repLoop rst
+              else if ord (head inp) == 0 -- indicates sometimes EOF
+                     then cleanUpAndExitRepl rst
+                     else processInput rst inp
 
 calcPrompt :: ReplState -> String
 calcPrompt rst =
@@ -267,21 +272,22 @@ getAcyOfMainExpMod rst = do
                                             (mainExpMod rst) >>
                  tryReadACYFile acyMainExpFile)
                 (\_ -> return Nothing)
-  removeFileIfExists acyMainExpFile
+  unlessKeepFiles rst $ removeFileIfExists acyMainExpFile
   return prog
 
 getAcyOfExpr :: ReplState -> String -> IO (Maybe CurryProg)
 getAcyOfExpr rst expr = do
   writeSimpleMainExpFile rst expr
   mbProg <- getAcyOfMainExpMod rst
-  removeFileIfExists (mainExpFile rst)
+  unlessKeepFiles rst $ removeFileIfExists (mainExpFile rst)
   return mbProg
 
--- Show the type of an expression w.r.t. main program:
-showTypeOfExp :: ReplState -> String -> IO Bool
-showTypeOfExp rst exp = do
+-- Prints the type of an expression w.r.t. main program.
+printTypeOfExp :: ReplState -> String -> IO Bool
+printTypeOfExp rst exp = do
   mbProg <- getAcyOfExpr rst exp
-  maybe (return False)
+  maybe (do writeVerboseInfo rst 3 "Cannot read AbstractCurry file"
+            return False)
         (\ (CurryProg _ _ _ _ _ _ [CFunc _ _ _ qty _] _) -> do
           putStrLn $ exp ++ " :: " ++ showMonoQualTypeExpr False qty
           return True)
@@ -558,7 +564,7 @@ processSource rst args
 --- Process :type command
 processType :: ReplState -> String -> IO (Maybe ReplState)
 processType rst args = do
-  typeok <- showTypeOfExp rst args
+  typeok <- printTypeOfExp rst args
   return (if typeok then Just rst else Nothing)
 
 --- Process :usedimports command
@@ -819,14 +825,15 @@ compileMainExpression rst exp runrmexec = do
                                (unwords ["./" ++ mainexpmod, rtsArgs rst])
                   writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
                   ecx <- system execcmd
-                  removeFileIfExists mainexpmod -- remove executable
+                  unlessKeepFiles rst $
+                    removeFileIfExists mainexpmod -- remove executable
                   return ecx
                 else return 0
         cleanModule rst mainexpmod
         return ec
 
   generateMainExpFile = do
-    removeFileIfExists $ acyFileName rst (mainExpMod rst)
+    unlessKeepFiles rst $ removeFileIfExists $ acyFileName rst (mainExpMod rst)
     writeSimpleMainExpFile rst exp
     getAcyOfMainExpMod rst >>=
       maybe (return 1)
@@ -838,13 +845,18 @@ compileMainExpression rst exp runrmexec = do
 
 -- Removes a Curry module and intermediate files.
 cleanModule :: ReplState -> String -> IO ()
-cleanModule rst mainmod = unless keepfiles $ do
+cleanModule rst mainmod = unlessKeepFiles rst $ do
   writeVerboseInfo rst 2 $ "Executing: " ++ cleancmd
   system cleancmd
   return ()
  where
-  keepfiles = rcValue (rcVars rst) "keepfiles" == "yes"
   cleancmd  = ccCleanCmd (compiler rst) mainmod
+
+-- Executes an I/O action if the RC values `keepfiles` is not `yes`.
+unlessKeepFiles :: ReplState -> IO () -> IO ()
+unlessKeepFiles rst act = unless keepfiles act
+ where
+  keepfiles = rcValue (rcVars rst) "keepfiles" == "yes"
 
 ---------------------------------------------------------------------------
 -- Transforming main expression into appropriate form.
