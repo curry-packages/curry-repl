@@ -137,13 +137,30 @@ repLoop rst = do
   eof <- isEOF
   if eof
     then cleanUpAndExitRepl rst
-    else do inp <- getLine >>= return . strip
-            if null inp
-              then repLoop rst
-              else if ord (head inp) == 0 -- indicates sometimes EOF
-                     then cleanUpAndExitRepl rst
-                     else processInput rst inp
+    else mGetLine >>= maybe (cleanUpAndExitRepl rst)
+           (\inp -> do let sinp = strip inp
+                       if null sinp
+                         then repLoop rst
+                         else if ord (head sinp) == 0 -- indicates sometimes EOF
+                                then cleanUpAndExitRepl rst
+                                else processInput rst sinp)
 
+-- A variant of `Prelude.getLine` which returns `Nothing` is EOF is reached.
+mGetLine  :: IO (Maybe String)
+mGetLine = do
+  eof <- isEOF
+  if eof
+    then return Nothing
+    else do
+      c  <- getChar
+      if ord c == 0 -- indices EOF in Curry2Go
+        then return Nothing
+        else if c == '\n'
+               then return $ Just []
+               else do mGetLine >>= maybe (return Nothing)
+                                          (\cs -> return $ Just (c:cs))
+
+-- Calculates the prompt string w.r.t. the currently loaded modules.
 calcPrompt :: ReplState -> String
 calcPrompt rst =
   substS (unwords (currMod rst : addMods rst)) (prompt rst)
