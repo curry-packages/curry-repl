@@ -269,15 +269,18 @@ writeMainExpFile rst imports mtype exp =
     [noMissingSigs, "module " ++ mainExpMod rst ++ " where"] ++
     map ("import " ++) allImports ++
     maybe [] (\ts -> ["main :: " ++ ts]) mtype ++
-    ["main = " ++ qualifyMain exp]
+    ["main = " ++ qualifyMain (strip exp)]
  where
   allImports = filter (/="Prelude") . nub $ currMod rst : addMods rst ++ imports
 
   noMissingSigs = "{-# OPTIONS_FRONTEND -W no-missing-signatures #-}"
 
   -- simple hack to avoid name conflict with "main":
-  qualifyMain s = if strip s == "main" then currMod rst ++ ".main"
-                                       else s
+  -- (better solution: pretty print parsed main expression with qualification)
+  qualifyMain s
+    | "main" `isPrefixOf` s = currMod rst ++ ".main" ++ drop 4 s
+    | "("    `isPrefixOf` s = '(' : qualifyMain (tail s)
+    | otherwise             = s
 
 -- Generate, read, and delete .acy file of main expression module.
 -- Return Nothing if some error occurred during parsing.
