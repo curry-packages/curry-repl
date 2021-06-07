@@ -72,7 +72,8 @@ processArgsAndStart rst []
   | otherwise = do
       writeVerboseInfo rst 1 (ccBanner (compiler rst))
       writeVerboseInfo rst 1 $
-        "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")"
+        "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")\n" ++
+        "Compiling Prelude..."
       processCompile (reduceVerbose rst) "Prelude"
       repLoop rst
 processArgsAndStart rst (arg:args)
