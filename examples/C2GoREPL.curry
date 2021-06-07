@@ -5,7 +5,7 @@
 ---     > cypm curry :l C2GoREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version June 2021
 ------------------------------------------------------------------------------
 
 module C2GoREPL where
@@ -27,20 +27,20 @@ c2goHome = "/usr/local/curry2go"
 
 c2go :: CCDescription
 c2go = CCDescription
-  "curry2go"                 -- the compiler name
-  (1,0,0)                    -- the version number
-  c2goBanner                 -- the banner
-  c2goHome                   -- home directory of the compiler
-  "info@curry-lang.org"      -- contact email
-  "curry2goc"                -- compiler executable
-  (c2goHome ++ "/lib")       -- base library path
-  False                      -- parser should read untyped FlatCurry
-  True                       -- use CURRYPATH variable
-  (\s -> "-v" ++ s)          -- option to pass verbosity
-  (\_ -> "")                 -- option to pass parser options
-  (\s -> "--compile " ++ s)  -- option to compile only
-  (\s -> s)                  -- option to create an executable
-  cleanCmd                   -- command to clean module
+  "curry2go"                     -- the compiler name
+  (1,0,0)                        -- the version number
+  c2goBanner                     -- the banner
+  c2goHome                       -- home directory of the compiler
+  "info@curry-lang.org"          -- contact email
+  (c2goHome ++ "/bin/curry2goc") -- compiler executable
+  (c2goHome ++ "/lib")           -- base library path
+  Nothing                        -- compile program with load command
+  True                           -- use CURRYPATH variable
+  (\s -> "-v" ++ s)              -- option to pass verbosity
+  (\_ -> "")                     -- option to pass parser options
+  (\s -> "--compile " ++ s)      -- option to compile only
+  (\s -> "--noimports " ++ s)    -- option to create an executable
+  cleanCmd                       -- command to clean module
   [stratOpt, intOpt, firstOpt]
  where
   cleanCmd m =

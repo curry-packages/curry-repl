@@ -5,7 +5,7 @@
 ---     > cypm curry :l PakcsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version June 2021
 ------------------------------------------------------------------------------
 
 module PakcsREPL where
@@ -35,7 +35,7 @@ pakcs = CCDescription
   "pakcs@curry-lang.org"                  -- contact email
   (pakcsHome ++ "/bin/pakcs")             -- compiler executable
   (pakcsHome ++ "/lib")                   -- base library path
-  False                                   -- parser reads untyped FlatCurry
+  (Just False)                            -- load command reads untyped FlatCurry
   True                                    -- use CURRYPATH variable
   (\s -> ":set v" ++ s)                   -- option to pass verbosity
   (\s -> ":set parser " ++ s)             -- option to pass parser options

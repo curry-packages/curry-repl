@@ -6,7 +6,7 @@
 --- a JSON file) or statically defined in some module.
 ---
 --- @author  Michael Hanus
---- @version April 2021
+--- @version June 2021
 ------------------------------------------------------------------------------
 
 module REPL.Compiler where
@@ -29,8 +29,11 @@ module REPL.Compiler where
 ---   the base libraries of the Curry compiler. This path will be appended
 ---   to an existing load path (specified by the envrionment variable
 ---   `CURRYPATH`).
---- * `ccTypedFC` should be set to `True` if the front end should read
----   Typed FlatCurry files instead of FlatCurry files.
+--- * `ccTypedFC` should be set to `Nothing` if the (re)load command should
+---   compile the main program. Otherwise, the main program is only parsed
+---   with the front end where `Just True` indicates that the front end
+---   should produce Typed FlatCurry files instead of FlatCurry files
+---   (in case of `Just False`).
 --- * If `ccCurryPath` is `True`, then the actual load path is passed
 ---   by the environment variable `CURRYPATH` to the compiler,
 ---   otherwise it is passed by a sequence of options of the form `-iDIR`.
@@ -55,7 +58,7 @@ data CCDescription = CCDescription
   , ccEmail     :: String           -- contact email (shown at startup)
   , ccExec      :: String           -- the executable of the compiler
   , ccLibPath   :: String           -- the path of the standard libraries
-  , ccTypedFC   :: Bool             -- should the parser read typed FlatCurry?
+  , ccTypedFC   :: Maybe Bool       -- should the parser read typed FlatCurry?
   , ccCurryPath :: Bool             -- use CURRYPATH instead of '-i' for imports
   , ccVerbOpt   :: String -> String -- option to pass verbosity
   , ccParseOpt  :: String -> String -- option to pass parser options

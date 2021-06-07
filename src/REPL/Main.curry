@@ -73,6 +73,7 @@ processArgsAndStart rst []
       writeVerboseInfo rst 1 (ccBanner (compiler rst))
       writeVerboseInfo rst 1 $
         "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")"
+      processCompile (reduceVerbose rst) "Prelude"
       repLoop rst
 processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
@@ -435,10 +436,11 @@ processCd rst args = do
 
 --- Process :compile command
 processCompile :: ReplState -> String -> IO (Maybe ReplState)
-processCompile rst args =
- processLoad rst args >>=
-   maybe (return Nothing)
-         (\rst' -> compileCurryProgram rst' (currMod rst'))
+processCompile rst args = do
+  let modname = stripCurrySuffix args
+  if null modname
+    then skipCommand "missing module name"
+    else compileCurryProgram rst modname
 
 --- Process :edit command
 processEdit :: ReplState -> String -> IO (Maybe ReplState)
@@ -509,10 +511,9 @@ processLoad rst args = do
         (\rst2 ->
           lookupModuleSource (loadPaths rst2) modname >>=
           maybe (skipCommand $
-                   "source file of module " ++ dirmodname ++ " not found")
-                (\_ -> do parseCurryProgram rst2 modname
-                          return $
-                            Just rst2 { currMod = modname, addMods = [] })
+                   "source file of module '" ++ dirmodname ++ "' not found")
+                (\_ -> loadCurryProgram rst2 { currMod = modname, addMods = [] }
+                                        modname)
         )
         mbrst
 
@@ -522,7 +523,7 @@ processReload rst args
   | currMod rst == preludeName rst
   = skipCommand "no program loaded!"
   | null (stripCurrySuffix args)
-  = parseCurryProgram rst (currMod rst) >> return (Just rst)
+  = loadCurryProgram rst (currMod rst)
   | otherwise
   = skipCommand "superfluous argument"
 
@@ -611,7 +612,7 @@ printHelpOnCommands = putStrLn $ unlines
   , ""
   , ":!<command>        - execute <command> in shell"
   , ":browse            - browse program and its imported modules"
-  , ":compile <prog>    - like ':load <prog>' but also compile program"
+  , ":compile <m>       - compile module <m> (but do not load it)"
   , ":cd <dir>          - change current directory to <dir>"
   , ":edit              - load source of currently loaded module into editor"
   , ":edit <m>          - load source of module <m> into editor"
@@ -832,7 +833,7 @@ compileMainExpression rst exp runrmexec = do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
         let mainexpmod = mainExpMod rst
-            compilecmd = curryCompilerCommand rst ++ " " ++
+            compilecmd = curryCompilerCommand (reduceVerbose rst) ++ " " ++
                          (ccExecOpt (compiler rst)) mainexpmod
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
@@ -1076,13 +1077,20 @@ substTypeVar tv def (CTApply   te1 te2) =
 ---------------------------------------------------------------------------
 
 -- Parse a Curry program to detect errors (for load/reload command):
-parseCurryProgram :: ReplState -> String -> IO Int
-parseCurryProgram rst curryprog = do
+parseCurryProgram :: ReplState -> String -> Bool -> IO (Maybe ReplState)
+parseCurryProgram rst curryprog tfcy = do
   let frontendparams = currentFrontendParams rst (verbose rst == 0)
-      target         = if ccTypedFC (compiler rst) then TFCY else FCY
+      target         = if tfcy then TFCY else FCY
   catch (verbCallFrontendWithParams rst target frontendparams curryprog
-           >> return 0)
-        (\_ -> return 1)
+           >> return (Just rst))
+        (\_ -> return Nothing)
+
+-- Load a Curry program (parse onyl or compile it):
+loadCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
+loadCurryProgram rst curryprog =
+  maybe (compileCurryProgram rst curryprog)
+        (parseCurryProgram rst curryprog)
+        (ccTypedFC (compiler rst))
 
 -- Compile a Curry program with the Curry compiler:
 compileCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
@@ -1093,8 +1101,8 @@ compileCurryProgram rst curryprog = do
   if ccCurryPath (compiler rst)
     then execCommandWithPath rst timecompilecmd []
     else do writeVerboseInfo rst 2 $ "Executing: " ++ timecompilecmd
-            system timecompilecmd
-            return $ Just rst
+            es <- system timecompilecmd
+            return $ if es == 0 then Just rst else Nothing
 
 -- Generate the base command to call the Curry compiler:
 curryCompilerCommand :: ReplState -> String
@@ -1103,7 +1111,7 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
   cmpopts = unwords $
     [ -- pass current value of "bindingoptimization" property to compiler:
       -- "-Dbindingoptimization=" ++ rcValue (rcVars rst) "bindingoptimization"
-      (ccVerbOpt (compiler rst)) (show (transVerbose (verbose rst)))
+      (ccVerbOpt (compiler rst)) (show (verbose rst))
     ] ++
     (if ccCurryPath (compiler rst)
        then []
@@ -1112,9 +1120,6 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
     (if null (parseOpts rst)
       then []
       else [(ccParseOpt (compiler rst)) (parseOpts rst)])
-
-  transVerbose n | n == 0    = 0
-                 | otherwise = n - 1
 
 --- Extract a module name, possibly prefixed by a path, from an argument,
 --- or return the current module name if the argument is the empty string.
@@ -1126,6 +1131,13 @@ getModuleName rst args =
         in if dirname == "./"
            then return mname
            else getAbsolutePath (stripCurrySuffix args)
+
+-- Reduce verbosity in the REPL state.
+reduceVerbose :: ReplState -> ReplState
+reduceVerbose rst = rst { verbose = redVerb (verbose rst) }
+ where
+  redVerb n | n == 0    = 0
+            | otherwise = n - 1
 
 ---------------------------------------------------------------------------
 -- Operations to call auxiliary tools.

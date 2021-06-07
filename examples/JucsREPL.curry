@@ -7,7 +7,7 @@
 ---     > cypm curry :l JucsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version February 2021
+--- @version June 2021
 ------------------------------------------------------------------------------
 
 module JucsREPL where
@@ -33,7 +33,7 @@ jucs = CCDescription
   "info@curry-lang.org"                -- contact email
   "jucs"                               -- compiler executable
   (installDir ++ "/lib")               -- base library path
-  False                                -- parser should read untyped FlatCurry
+  (Just False)                         -- load command reads untyped FlatCurry
   True                                 -- use CURRYPATH variable
   (\s -> "-v" ++ s)                    -- option to pass verbosity
   (\_ -> "")                           -- option to pass parser options
