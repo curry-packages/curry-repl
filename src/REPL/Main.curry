@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version April 2021
+--- @version June 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -72,9 +72,10 @@ processArgsAndStart rst []
   | otherwise = do
       writeVerboseInfo rst 1 (ccBanner (compiler rst))
       writeVerboseInfo rst 1 $
-        "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")\n" ++
-        "Compiling Prelude..."
-      processCompile (reduceVerbose rst) "Prelude"
+        "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")"
+      when (currMod rst == "Prelude") $ do
+        writeVerboseInfo rst 1 $ "Compiling Prelude..."
+        processCompile (reduceVerbose rst) "Prelude" >> return ()
       repLoop rst
 processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
