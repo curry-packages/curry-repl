@@ -842,18 +842,17 @@ compileMainExpression rst exp runrmexec = do
           then execCommandWithPath rst timecompilecmd [] >> return ()
           else do writeVerboseInfo rst 2 $ "Executing: " ++ timecompilecmd
                   system timecompilecmd >> return ()
-        ec <- if runrmexec
-                then do
-                  execcmd <- getTimeCmd rst "Execution"
-                               (unwords ["./" ++ mainexpmod, rtsArgs rst])
-                  writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
-                  ecx <- system execcmd
-                  unlessKeepFiles rst $
-                    removeFileIfExists mainexpmod -- remove executable
-                  return ecx
-                else return 0
         cleanModule rst mainexpmod
-        return ec
+        if runrmexec
+          then do
+            execcmd <- getTimeCmd rst "Execution"
+                         (unwords ["./" ++ mainexpmod, rtsArgs rst])
+            writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
+            ecx <- system execcmd
+            unlessKeepFiles rst $
+              removeFileIfExists mainexpmod -- remove executable
+            return ecx
+          else return 0
 
   generateMainExpFile = do
     unlessKeepFiles rst $ removeFileIfExists $ acyFileName rst (mainExpMod rst)
