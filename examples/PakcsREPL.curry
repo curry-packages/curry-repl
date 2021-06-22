@@ -33,6 +33,7 @@ pakcs = CCDescription
   pakcsBanner                             -- the banner
   pakcsHome                               -- home directory of the compiler
   "pakcs@curry-lang.org"                  -- contact email
+  (pakcsHome ++ "/bin/pakcs-frontend") -- executable of the Curry front end
   (pakcsHome ++ "/bin/pakcs")             -- compiler executable
   (pakcsHome ++ "/lib")                   -- base library path
   (Just False)                            -- load command reads untyped FlatCurry

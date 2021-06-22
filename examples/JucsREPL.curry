@@ -31,6 +31,7 @@ jucs = CCDescription
   jucsBanner                           -- the banner
   jucsHome                             -- home directory of the compiler
   "info@curry-lang.org"                -- contact email
+  (installDir ++ "/bin/pakcs-frontend") -- executable of the Curry front end
   "jucs"                               -- compiler executable
   (installDir ++ "/lib")               -- base library path
   (Just False)                         -- load command reads untyped FlatCurry

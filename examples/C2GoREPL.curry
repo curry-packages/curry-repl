@@ -32,6 +32,7 @@ c2go = CCDescription
   c2goBanner                     -- the banner
   c2goHome                       -- home directory of the compiler
   "info@curry-lang.org"          -- contact email
+  (c2goHome ++ "/bin/curry2go-frontend") -- executable of the Curry front end
   (c2goHome ++ "/bin/curry2goc") -- compiler executable
   (c2goHome ++ "/lib")           -- base library path
   Nothing                        -- compile program with load command
