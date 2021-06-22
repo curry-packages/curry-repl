@@ -24,6 +24,7 @@ module REPL.Compiler where
 ---   with the template for a resource configuration file.
 ---   This file is copied into the user's home directory (if it does not exist)
 ---   or updated (when the variables in the template have been changed).
+--- * `ccFrontend` is the executable of the Curry front end.
 --- * `ccExec` is the executable of the Curry compiler.
 --- * `ccLibPath` is the path (possibly several directies) containing
 ---   the base libraries of the Curry compiler. This path will be appended
@@ -56,6 +57,7 @@ data CCDescription = CCDescription
   , ccBanner    :: String           -- the banner shown for the compiler
   , ccHome      :: String           -- home directory of the compiler
   , ccEmail     :: String           -- contact email (shown at startup)
+  , ccFrontend  :: String           -- the executable of the Curry front end
   , ccExec      :: String           -- the executable of the compiler
   , ccLibPath   :: String           -- the path of the standard libraries
   , ccTypedFC   :: Maybe Bool       -- should the parser read typed FlatCurry?

@@ -221,13 +221,14 @@ importUnsafeModule rst =
 -- Compute the front-end parameters for the current state:
 currentFrontendParams :: ReplState -> Bool -> FrontendParams
 currentFrontendParams rst quiet =
-    setQuiet       quiet
-  $ setFullPath    (loadPaths rst)
-  $ setExtended    (rcValue (rcVars rst) "curryextensions" /= "no")
-  $ setOverlapWarn (rcValue (rcVars rst) "warnoverlapping" /= "no")
-  $ setSpecials    (parseOpts rst)
-  $ setDefinitions [("__" ++ map toUpper (ccName cc) ++ "__", maj*100 + min)]
-  $ setOutDir      (compilerOutDir rst)
+    setQuiet        quiet
+  $ setFrontendPath (ccFrontend cc)
+  $ setFullPath     (loadPaths rst)
+  $ setExtended     (rcValue (rcVars rst) "curryextensions" /= "no")
+  $ setOverlapWarn  (rcValue (rcVars rst) "warnoverlapping" /= "no")
+  $ setSpecials     (parseOpts rst)
+  $ setDefinitions  [("__" ++ map toUpper (ccName cc) ++ "__", maj*100 + min)]
+  $ setOutDir       (compilerOutDir rst)
     defaultParams
  where
   cc = compiler rst
