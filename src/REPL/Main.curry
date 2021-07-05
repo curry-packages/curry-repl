@@ -81,12 +81,14 @@ processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
   | null arg
   = processArgsAndStart rst args
-  -- ignore '--nocypm' or '--noreadline'
+  -- ignore '--nocypm|-n' or '--noreadline'
   -- (since they already processed by separate script to invoke the REPL)
-  | arg == "--nocypm" || arg == "--noreadline"
+  | arg `elem` ["-n", "--nocypm", "--noreadline"]
   = processArgsAndStart rst args
   | arg == "-h" || arg == "--help" || arg == "-?"
   = printHelp >> cleanUpAndExitRepl rst
+  | arg == "-q" || arg == "--quiet"
+  = processArgsAndStart rst { verbose = 0 } args
   | arg == "-V" || arg == "--version"
   = do putStrLn (ccBanner (compiler rst))
        processArgsAndStart rst { quit = True} args
@@ -124,7 +126,8 @@ printHelp = putStrLn $ unlines
   , "--compiler-name   : show the compiler name and quit"
   , "--numeric-version : show the compiler version number and quit"
   , "--base-version    : show the version of the base libraries and quit"
-  , "--nocypm          : do not invoke `cypm' to compute package load path"
+  , "-q|--quiet        : work silently"
+  , "-n|--nocypm       : do not invoke `cypm' to compute package load path"
   , "--noreadline      : do not use input line editing via command `rlwrap'"
   , "-Dprop=val        : define rc property `prop' as `val'"
   , ":<cmd> <args>     : commands of the interactive environment"
