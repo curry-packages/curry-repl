@@ -2,7 +2,7 @@
 --- The state of the REPL.
 ---
 --- @author  Michael Hanus
---- @version March 2021
+--- @version July 2021
 ------------------------------------------------------------------------------
 
 module REPL.State where
@@ -35,6 +35,7 @@ data ReplState = ReplState
   , mainExpMod   :: String     -- name of module to store main expressions
   , prompt       :: String     -- repl prompt shown in front of user input
   , showTime     :: Bool       -- show execution of main goal?
+  , withEcho     :: Bool       -- echoing REPL commands?
   , withShow     :: Bool       -- use class `Show` to show results
   , showBindings :: Bool       -- show free variables in main goal in output?
   , safeExec     :: Bool       -- safe execution mode without I/O actions
@@ -64,6 +65,7 @@ initReplState cd = do
     , mainExpMod   = mainmod
     , prompt       = "%s> "
     , showTime     = False
+    , withEcho     = False
     , withShow     = False
     , showBindings = False
     , safeExec     = False

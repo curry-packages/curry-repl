@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version June 2021
+--- @version July 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -10,8 +10,8 @@ module REPL.Main where
 import Control.Monad      ( when, unless )
 import Curry.Compiler.Distribution ( installDir )
 import Data.Char          ( toLower, toUpper )
-import Data.List          ( intercalate, intersperse
-                          , isInfixOf, isPrefixOf, nub, partition, sort )
+import Data.List          ( intercalate, intersperse, isInfixOf, isPrefixOf
+                          , maximum, nub, partition, sort, sortBy )
 import System.Environment ( getArgs, getEnv )
 import System.FilePath    ( (</>), (<.>) )
 import System.IO          ( hClose, hFlush, hPutStrLn, isEOF, stdout )
@@ -139,19 +139,23 @@ printHelp = putStrLn $ unlines
 -- The main read-eval-print loop:
 repLoop :: ReplState -> IO ()
 repLoop rst = do
-  putStr (calcPrompt rst) >> hFlush stdout
+  putStr prompt >> hFlush stdout
   eof <- isEOF
-  if eof
-    then cleanUpAndExitRepl rst
-    else mGetLine >>= maybe (cleanUpAndExitRepl rst)
-           (\inp -> do let sinp = strip inp
-                       if null sinp
-                         then repLoop rst
-                         else if ord (head sinp) == 0 -- indicates sometimes EOF
-                                then cleanUpAndExitRepl rst
-                                else processInput rst sinp)
+  if eof then cleanUpAndExitRepl rst
+         else mGetLine >>= maybe (cleanUpAndExitRepl rst) (checkInput . strip)
+ where
+  prompt = calcPrompt rst
 
--- A variant of `Prelude.getLine` which returns `Nothing` is EOF is reached.
+  checkInput inp
+    | null inp
+    = repLoop rst
+    | ord (head inp) == 0 -- indicates sometimes EOF
+    = cleanUpAndExitRepl rst
+    | otherwise
+    = do when (withEcho rst) $ putStrLn $ prompt ++ inp
+         processInput rst inp
+
+-- A variant of `Prelude.getLine` which returns `Nothing` if EOF is reached.
 mGetLine  :: IO (Maybe String)
 mGetLine = do
   eof <- isEOF
@@ -711,12 +715,14 @@ replOptions rst =
   , ("parser"       , \r a -> return (Just r { parseOpts    = a     }))
   , ("args"         , \r a -> return (Just r { rtsArgs      = a     }))
   -- , ("prelude"      , \r a -> return (Just r { preludeName  = a     }))
-  , ("+time"        , \r _ -> return (Just r { showTime     = True  }))
-  , ("-time"        , \r _ -> return (Just r { showTime     = False }))
-  , ("+show"        , \r _ -> return (Just r { withShow     = True  }))
-  , ("-show"        , \r _ -> return (Just r { withShow     = False }))
   , ("+bindings"    , \r _ -> return (Just r { showBindings = True  }))
   , ("-bindings"    , \r _ -> return (Just r { showBindings = False }))
+  , ("+echo"        , \r _ -> return (Just r { withEcho     = True  }))
+  , ("-echo"        , \r _ -> return (Just r { withEcho     = False }))
+  , ("+show"        , \r _ -> return (Just r { withShow     = True  }))
+  , ("-show"        , \r _ -> return (Just r { withShow     = False }))
+  , ("+time"        , \r _ -> return (Just r { showTime     = True  }))
+  , ("-time"        , \r _ -> return (Just r { showTime     = False }))
   ] ++
   concatMap setCmpOpt (ccOpts (compiler rst))
  where
@@ -753,12 +759,14 @@ printOptions rst = putStrLn $ unlines $ filter notNull
   , "parser  <opts>  - additional options passed to parser (front end)"
   , "args    <args>  - run-time arguments passed to main program"
   -- , "prelude <name>  - name of the standard prelude"
-  , "+/-time         - show compilation and execution time"
-  , "+/-show         - use 'Prelude.show' to show evaluation results"
-  , "+/-bindings     - show bindings of free variables in initial goal"
-  , showCompilerOptions (ccOpts (compiler rst))
-  , showCurrentOptions rst
-  ]
+  ] ++
+  sort
+    ([ "+/-time         - show compilation and execution time"
+     , "+/-echo         - turn on/off echoing of commands"
+     , "+/-show         - use 'Prelude.show' to show evaluation results"
+     , "+/-bindings     - show bindings of free variables in initial goal"
+     ] ++ showCompilerOptions (ccOpts (compiler rst))) ++
+  [ showCurrentOptions rst ]
 
 showCurrentOptions :: ReplState -> String
 showCurrentOptions rst = intercalate "\n" $ filter notNull
@@ -767,30 +775,41 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
   , "parser options    : " ++ parseOpts rst
   , "run-time arguments: " ++ rtsArgs rst
   , "verbosity         : " ++ show (verbose rst)
-  , "prompt            : " ++ show (prompt rst) ] ++
-  (if verbose rst > 2
-     then [ "prelude           : " ++ preludeName rst
-          , "main exp module   : " ++ mainExpMod  rst
-          , "verbosity option  : " ++ ccVerbOpt  (compiler rst) "VERB"
-          , "parser option     : " ++ ccParseOpt (compiler rst) "OPTS"
-          , "compile option    : " ++ ccCmplOpt  (compiler rst) "MOD"
-          , "executable option : " ++ ccExecOpt  (compiler rst) "MOD"
-          , "clean command     : " ++ ccCleanCmd (compiler rst) "MOD"
-          ]
-     else []) ++
-  [ "Further settings:"
-  , unwords $
+  , "prompt            : " ++ show (prompt rst)
+  , "\nFurther settings:"
+  , unwords $ sortBy (\f1 f2 -> stripFlag f1 <= stripFlag f2) $
       [ showOnOff (showBindings rst) ++ "bindings"
+      , showOnOff (withEcho     rst) ++ "echo"
       , showOnOff (withShow     rst) ++ "show"
       , showOnOff (showTime     rst) ++ "time"
       ] ++ map fst (cmpOpts rst)
   ] ++
   (if verbose rst > 2
-     then [ "", "Properties from rc file:" ] ++
-          map (\ (var,val) -> var ++ " = " ++ val) (rcVars rst)
+     then [ "\nDetailed configuration:"
+          , "prelude name       : " ++ preludeName rst
+          , "main exp module    : " ++ mainExpMod  rst
+          , "parser executable  : " ++ ccFrontend ccdesc
+          , "parser option      : " ++ ccParseOpt ccdesc "OPTS"
+          , "compiler home dir  : " ++ ccHome     ccdesc
+          , "compiler executable: " ++ ccExec     ccdesc
+          , "verbosity option   : " ++ ccVerbOpt  ccdesc "VERB"
+          , "compile option     : " ++ ccCmplOpt  ccdesc "MOD"
+          , "executable option  : " ++ ccExecOpt  ccdesc "MOD"
+          , "clean command      : " ++ ccCleanCmd ccdesc "MOD"
+          , "\nProperties from rc file:" ] ++ formatVarVals (rcVars rst)
      else [])
  where
+  ccdesc = compiler rst
+
+  stripFlag []     = []
+  stripFlag (c:cs) = if c `elem` "+-" then cs else c:cs
+
   showOnOff b = if b then "+" else "-"
+
+  formatVarVals vvs =
+    let maxvar = maximum (map (length . fst) vvs)
+    in map (\ (var,val) -> var ++ take (maxvar - length var) (repeat ' ') ++
+                           " = " ++ val) vvs
 
 ---------------------------------------------------------------------------
 --- The default import paths of the Curry compiler.

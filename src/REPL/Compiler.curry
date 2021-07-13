@@ -6,7 +6,7 @@
 --- a JSON file) or statically defined in some module.
 ---
 --- @author  Michael Hanus
---- @version June 2021
+--- @version July 2021
 ------------------------------------------------------------------------------
 
 module REPL.Compiler where
@@ -78,9 +78,7 @@ data CCDescription = CCDescription
 --- can be set.
 data CCOption = CCOption String String [(String,String)]
 
-showCompilerOptions :: [CCOption] -> String
-showCompilerOptions = unlines . map showOpt
- where
-  showOpt (CCOption s1 s2 _) = s1 ++ " - " ++ s2
+showCompilerOptions :: [CCOption] -> [String]
+showCompilerOptions = map (\ (CCOption s1 s2 _) -> s1 ++ " - " ++ s2)
 
 ------------------------------------------------------------------------------
