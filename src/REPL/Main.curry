@@ -606,40 +606,40 @@ processUsedImports rst args = do
     (\toolexec -> execCommandWithPath rst toolexec [modname])
 
 printHelpOnCommands :: IO ()
-printHelpOnCommands = putStrLn $ unlines
-  [ "Basic commands (commands can be abbreviated to a prefix if unique):"
-  , ""
-  , ":load <prog>       - load program '<prog>.[l]curry' as main module"
-  , ":reload            - recompile currently loaded modules"
-  , ":add  <m1> .. <mn> - add modules <m1>,...,<mn> to currently loaded modules"
-  , ":eval <expr>       - evaluate expression <expr>"
-  , ":save <expr>       - save executable with main expression <expr>"
-  , ":save              - save executable with main expression 'main'"
-  , ":type <expr>       - show type of expression <expr>"
-  , ":quit              - leave the system"
-  , ""
-  , "Further commands:"
-  , ""
-  , ":!<command>        - execute <command> in shell"
-  , ":browse            - browse program and its imported modules"
-  , ":compile <m>       - compile module <m> (but do not load it)"
-  , ":cd <dir>          - change current directory to <dir>"
-  , ":edit              - load source of currently loaded module into editor"
-  , ":edit <m>          - load source of module <m> into editor"
-  , ":fork <expr>       - fork new process evaluating <expr>"
-  , ":help              - show this message"
-  , ":interface         - show interface of currently loaded module"
-  , ":interface <m>     - show interface of module <m>"
-  , ":modules           - show currently loaded modules with source information"
-  , ":programs          - show names of Curry modules available in load path"
-  , ":set <option>      - set an option"
-  , ":set               - see help on options and current options"
-  , ":show              - show currently loaded source program"
-  , ":show <m>          - show source of module <m>"
-  , ":source <f>        - show source of (visible!) function <f>"
-  , ":source <m>.<f>    - show source of function <f> in module <m>"
-  , ":usedimports       - show all used imported functions/constructors"
-  ]
+printHelpOnCommands = putStrLn $ unlines $
+  [ "Basic commands (commands can be abbreviated to a prefix if unique):\n" ] ++
+  formatVarVals " - "
+    [ (":load <prog>", "load program '<prog>.[l]curry' as main module")
+    , (":reload"     , "recompile currently loaded modules")
+    , (":add  <m1> .. <mn>",
+        "add modules <m1>,...,<mn> to currently loaded modules")
+    , (":eval <expr>", "evaluate expression <expr>")
+    , (":save <expr>", "save executable with main expression <expr>")
+    , (":save"       , "save executable with main expression 'main'")
+    , (":type <expr>", "show type of expression <expr>")
+    , (":quit"       , "leave the system") ] ++
+  [ "\nFurther commands:\n" ] ++
+  formatVarVals " - "
+    [ (":!<command>"   , "execute <command> in shell")
+    , (":browse"       , "browse program and its imported modules")
+    , (":compile <m>"  , "compile module <m> (but do not load it)")
+    , (":cd <dir>"     , "change current directory to <dir>")
+    , (":edit"         , "load source of currently loaded module into editor")
+    , (":edit <m>"     , "load source of module <m> into editor")
+    , (":fork <expr>"  , "fork new process evaluating <expr>")
+    , (":help"         , "show this message")
+    , (":interface"    , "show interface of currently loaded module")
+    , (":interface <m>", "show interface of module <m>")
+    , (":modules"      ,
+       "show currently loaded modules with source information")
+    , (":programs"     , "show names of Curry modules available in load path")
+    , (":set <option>" , "set an option")
+    , (":set"          , "see help on options and current options")
+    , (":show"         , "show currently loaded source program")
+    , (":show <m>"     , "show source of module <m>")
+    , (":source <f>"   , "show source of (visible!) function <f>")
+    , (":source <m>.<f>   ", "show source of function <f> in module <m>")
+    , (":usedimports"  , "show all used imported functions/constructors") ]
 
 --- Print all Curry programs in current load path.
 --- Programs found in subdirectories are assumed to be hierarchical.
@@ -746,70 +746,85 @@ setPrompt rst p
 -- Show help on options and current settings.
 printOptions :: ReplState -> IO ()
 printOptions rst = putStrLn $ unlines $ filter notNull
-  [ "Options for ':set' command:"
-  , "v<n>            - verbosity level"
-  , "                  0: quiet (errors and warnings only)"
-  , "                  1: show status messages (default)"
-  , "                  2: show commands"
-  , "                  3: show intermediate infos"
-  , "                  4: show all details"
-  , "path <paths>    - set additional search paths for imported modules"
-  , "prompt <prompt> - set the user prompt"
-  , "safe            - safe execution mode without I/O actions"
-  , "parser  <opts>  - additional options passed to parser (front end)"
-  , "args    <args>  - run-time arguments passed to main program"
-  -- , "prelude <name>  - name of the standard prelude"
-  ] ++
-  sort
-    ([ "+/-time         - show compilation and execution time"
-     , "+/-echo         - turn on/off echoing of commands"
-     , "+/-show         - use 'Prelude.show' to show evaluation results"
-     , "+/-bindings     - show bindings of free variables in initial goal"
-     ] ++ showCompilerOptions (ccOpts (compiler rst))) ++
+  [ "Options for ':set' command:" ] ++
+  formatVarVals " - "
+    ([ ("v<n>", "verbosity level\n" ++
+                "0: quiet (errors and warnings only)\n" ++
+                "1: show status messages (default)\n" ++
+                "2: show commands\n" ++
+                "3: show intermediate infos\n" ++
+                "4: show all details")
+     , ("path <paths>"   , "set additional search paths for imported modules")
+     , ("prompt <prompt>", "set the user prompt")
+     , ("safe"           , "safe execution mode without I/O actions")
+     , ("parser  <opts>" , "additional options passed to parser (front end)")
+     , ("args    <args>" , "run-time arguments passed to main program") ] ++
+     sort
+       ([ ("+/-time"   , "show compilation and execution time")
+        , ("+/-echo"   , "turn on/off echoing of commands")
+        , ("+/-show"   , "use 'Prelude.show' to show evaluation results")
+        , ("+/-bindings", "show bindings of free variables in initial goal")
+        ] ++ showCompilerOptions (ccOpts (compiler rst)))) ++
   [ showCurrentOptions rst ]
 
 showCurrentOptions :: ReplState -> String
 showCurrentOptions rst = intercalate "\n" $ filter notNull
-  [ "\nCurrent settings:"
-  , "import paths      : " ++ intercalate [searchPathSeparator] (loadPaths rst)
-  , "parser options    : " ++ parseOpts rst
-  , "run-time arguments: " ++ rtsArgs rst
-  , "verbosity         : " ++ show (verbose rst)
-  , "prompt            : " ++ show (prompt rst)
-  , "\nFurther settings:"
-  , unwords $ sortBy (\f1 f2 -> stripFlag f1 <= stripFlag f2) $
-      [ showOnOff (showBindings rst) ++ "bindings"
-      , showOnOff (withEcho     rst) ++ "echo"
-      , showOnOff (withShow     rst) ++ "show"
-      , showOnOff (showTime     rst) ++ "time"
-      ] ++ map fst (cmpOpts rst)
-  ] ++
+  [ "\nCurrent settings:" ] ++
+  formatVarVals ": "
+    [ ("import paths      ", intercalate [searchPathSeparator] (loadPaths rst))
+    , ("parser options    ", parseOpts rst)
+    , ("run-time arguments", rtsArgs rst)
+    , ("verbosity         ", show (verbose rst))
+    , ("prompt            ", show (prompt rst))
+    , ("...............and"
+      , unwordsOpts $ sortBy (\f1 f2 -> setFlag f1 <= setFlag f2) $
+          [ showOnOff (showBindings rst) ++ "bindings"
+          , showOnOff (withEcho     rst) ++ "echo"
+          , showOnOff (withShow     rst) ++ "show"
+          , showOnOff (showTime     rst) ++ "time"
+          ] ++ map fst (cmpOpts rst)) ] ++
   (if verbose rst > 2
-     then [ "\nDetailed configuration:"
-          , "prelude name       : " ++ preludeName rst
-          , "main exp module    : " ++ mainExpMod  rst
-          , "parser executable  : " ++ ccFrontend ccdesc
-          , "parser option      : " ++ ccParseOpt ccdesc "OPTS"
-          , "compiler home dir  : " ++ ccHome     ccdesc
-          , "compiler executable: " ++ ccExec     ccdesc
-          , "verbosity option   : " ++ ccVerbOpt  ccdesc "VERB"
-          , "compile option     : " ++ ccCmplOpt  ccdesc "MOD"
-          , "executable option  : " ++ ccExecOpt  ccdesc "MOD"
-          , "clean command      : " ++ ccCleanCmd ccdesc "MOD"
-          , "\nProperties from rc file:" ] ++ formatVarVals (rcVars rst)
+     then [ "\nProperties from rc file:" ] ++
+          formatVarVals " = " (rcVars rst) ++
+          [ "\nREPL configuration:" ] ++
+          formatVarVals ": "
+            [ ("prelude name"       , preludeName rst)
+            , ("main exp module"    , mainExpMod  rst)
+            , ("parser executable"  , ccFrontend ccdesc)
+            , ("parser option"      , ccParseOpt ccdesc "OPTS")
+            , ("compiler home dir"  , ccHome     ccdesc)
+            , ("compiler executable", ccExec     ccdesc)
+            , ("verbosity option"   , ccVerbOpt  ccdesc "VERB")
+            , ("compile option"     , ccCmplOpt  ccdesc "MOD")
+            , ("executable option"  , ccExecOpt  ccdesc "MOD")
+            , ("clean command"      , ccCleanCmd ccdesc "MOD") ]
      else [])
  where
   ccdesc = compiler rst
 
-  stripFlag []     = []
-  stripFlag (c:cs) = if c `elem` "+-" then cs else c:cs
+  unwordsOpts xs = let s = unwords xs
+                   in if length s >= 60 then unlines (unwordsN 5 xs)
+                                        else s
+
+  unwordsN n xs = let (ns,ms) = splitAt n xs
+                  in unwords ns : if null ms then [] else unwordsN n ms
+
+  setFlag []     = []
+  setFlag (c:cs) = if c `elem` "+-" then '~':cs else c:cs
 
   showOnOff b = if b then "+" else "-"
 
-  formatVarVals vvs =
-    let maxvar = maximum (map (length . fst) vvs)
-    in map (\ (var,val) -> var ++ take (maxvar - length var) (repeat ' ') ++
-                           " = " ++ val) vvs
+-- Format a list of variable/value string pairs and put the first argument
+-- between these strings.
+formatVarVals :: String -> [(String,String)] -> [String]
+formatVarVals sep vvs =
+  map (\ (var,val) -> var ++ blanks (maxvar - length var) ++ sep ++
+           intercalate ('\n' : blanks (maxvar + length sep)) (lines val))
+      vvs
+ where
+  blanks n = take n (repeat ' ')
+
+  maxvar = maximum (map (length . fst) vvs)
 
 ---------------------------------------------------------------------------
 --- The default import paths of the Curry compiler.

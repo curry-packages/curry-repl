@@ -78,7 +78,7 @@ data CCDescription = CCDescription
 --- can be set.
 data CCOption = CCOption String String [(String,String)]
 
-showCompilerOptions :: [CCOption] -> [String]
-showCompilerOptions = map (\ (CCOption s1 s2 _) -> s1 ++ " - " ++ s2)
+showCompilerOptions :: [CCOption] -> [(String,String)]
+showCompilerOptions = map (\ (CCOption s1 s2 _) -> (s1, s2))
 
 ------------------------------------------------------------------------------
