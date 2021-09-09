@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version July 2021
+--- @version September 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -36,8 +36,9 @@ import REPL.Compiler
 import REPL.RCFile
 import REPL.State
 import REPL.Utils          ( showMonoTypeExpr, showMonoQualTypeExpr
-                           , getTimeCmd, moduleNameToPath, validModuleName
-                           , notNull, removeFileIfExists, strip, writeErrorMsg )
+                           , getTimeCmd, getTimeoutCmd, moduleNameToPath
+                           , validModuleName, notNull, removeFileIfExists
+                           , strip, writeErrorMsg )
 
 -- ---------------------------------------------------------------------------
 
@@ -208,6 +209,7 @@ processInput rst g
 evalExpression :: ReplState -> String -> IO ReplState
 evalExpression rst expr = do
   exst <- compileMainExpression rst expr True
+  unless (exst == 0) $ writeVerboseInfo rst 1 $ "Exit status: " ++ show exst
   return rst { exitStatus = exst }
 
 -- Check whether the main module imports an "Unsafe" module.
@@ -713,6 +715,7 @@ replOptions rst =
   , ("prompt"       , setPrompt                                       )
   , ("safe"         , \r _ -> return (Just r { safeExec     = True  }))
   , ("parser"       , \r a -> return (Just r { parseOpts    = a     }))
+  , ("timeout"      , setTimeout                                      )
   , ("args"         , \r a -> return (Just r { rtsArgs      = a     }))
   -- , ("prelude"      , \r a -> return (Just r { preludeName  = a     }))
   , ("+bindings"    , \r _ -> return (Just r { showBindings = True  }))
@@ -735,12 +738,20 @@ replOptions rst =
 setPrompt :: ReplState -> String -> IO (Maybe ReplState)
 setPrompt rst p
   | null rawPrompt = skipCommand "no prompt specified"
-  | otherwise  = case head rawPrompt of
+  | otherwise      = case head rawPrompt of
     '"' -> case reads rawPrompt of
       [(strPrompt, [])] -> return (Just rst { prompt = strPrompt })
       _                 -> skipCommand "could not parse prompt"
     _   -> return (Just rst { prompt = rawPrompt })
  where rawPrompt = strip p
+
+setTimeout :: ReplState -> String -> IO (Maybe ReplState)
+setTimeout rst rawopt
+  | null opts  = skipCommand "no value for timeout given"
+  | otherwise  = case reads opts of
+      [(n, [])] -> return (Just rst { timeOut = if n<0 then 0 else n })
+      _         -> skipCommand "illegal timeout parameter (no integer)"
+ where opts = strip rawopt
 
 ------------------------------------------------------------------------------
 -- Show help on options and current settings.
@@ -758,6 +769,8 @@ printOptions rst = putStrLn $ unlines $ filter notNull
      , ("prompt <prompt>", "set the user prompt")
      , ("safe"           , "safe execution mode without I/O actions")
      , ("parser  <opts>" , "additional options passed to parser (front end)")
+     , ("timeout <n>"    ,
+        "timeout (in seconds) for main evaluation (0 = unlimited)")
      , ("args    <args>" , "run-time arguments passed to main program") ] ++
      sort
        ([ ("+/-time"   , "show compilation and execution time")
@@ -773,6 +786,7 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
   formatVarVals ": "
     [ ("import paths      ", intercalate [searchPathSeparator] (loadPaths rst))
     , ("parser options    ", parseOpts rst)
+    , ("timeout           ", show (timeOut rst))
     , ("run-time arguments", rtsArgs rst)
     , ("verbosity         ", show (verbose rst))
     , ("prompt            ", show (prompt rst))
@@ -883,8 +897,9 @@ compileMainExpression rst exp runrmexec = do
         cleanModule rst mainexpmod
         if runrmexec
           then do
-            execcmd <- getTimeCmd rst "Execution"
+            timecmd <- getTimeCmd rst "Execution"
                          (unwords ["./" ++ mainexpmod, rtsArgs rst])
+            execcmd <- getTimeoutCmd rst timecmd
             writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
             ecx <- system execcmd
             unlessKeepFiles rst $
@@ -1062,7 +1077,7 @@ makeMainExpMonomorphic rst prog exp = case prog of
 -- "Fractional" to the types "Int" or "Float", respectively. Moreover,
 -- existing "Data", "Eq", "Ord", "Read", and "Show" constraints for the same
 -- type variable are removed.
--- Moreover, remaing type variables with "Data" and "Monad" constraints are
+-- Finally, remaining type variables with "Data" and "Monad" constraints are
 -- defaulted to "Prelude.Bool" and "Prelude.IO", respectively.
 defaultQualTypeExpr :: CQualTypeExpr -> CQualTypeExpr
 defaultQualTypeExpr (CQualType (CContext ctxt) cty) =

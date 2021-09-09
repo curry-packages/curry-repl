@@ -5,7 +5,7 @@
 module REPL.Utils
   ( showMonoTypeExpr, showMonoQualTypeExpr
   , moduleNameToPath, validModuleName
-  , getTimeCmd, removeFileIfExists
+  , getTimeCmd, getTimeoutCmd, removeFileIfExists
   , notNull, strip, lpad, rpad, writeErrorMsg
   ) where
 
@@ -139,6 +139,17 @@ getTimeCmd rst timename cmd
   | otherwise    = return cmd
  where
   timeCmd = "time --format=\"" ++ timename ++ " time: %Us / elapsed: %E\" "
+
+-- Decorates a shell command with a timeout if the corresponding option is set.
+getTimeoutCmd :: ReplState -> String -> IO String
+getTimeoutCmd rst cmd
+  | timeOut rst > 0 = do extocmd <- doesFileExist timeoutCmd
+                         return $ if extocmd then timeoutOptCmd ++ cmd
+                                             else cmd
+  | otherwise       = return cmd
+ where
+  timeoutCmd    = "/usr/bin/timeout"
+  timeoutOptCmd = timeoutCmd ++ " " ++ show (timeOut rst) ++ "s "
 
 --- Removes the specified file only if it exists.
 removeFileIfExists :: FilePath -> IO ()
