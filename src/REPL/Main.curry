@@ -209,8 +209,6 @@ processInput rst g
 evalExpression :: ReplState -> String -> IO ReplState
 evalExpression rst expr = do
   exst <- compileMainExpression rst expr True
-  unless (exst == 0) $
-    writeVerboseInfo rst 1 $ "Non-zero exit status: " ++ show exst
   return rst { exitStatus = exst }
 
 -- Check whether the main module imports an "Unsafe" module.
@@ -903,6 +901,8 @@ compileMainExpression rst exp runrmexec = do
             execcmd <- getTimeoutCmd rst timecmd
             writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
             ecx <- system execcmd
+            unless (ecx == 0) $ writeVerboseInfo rst 1 $
+              "Execution terminated with exit status: " ++ show ecx
             unlessKeepFiles rst $
               removeFileIfExists mainexpmod -- remove executable
             return ecx
