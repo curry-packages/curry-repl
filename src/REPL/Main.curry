@@ -22,8 +22,7 @@ import AbstractCurry.Build ( ioType, stringType, unitType )
 import AbstractCurry.Select
 import System.CurryPath    ( inCurrySubdir, lookupModuleSource, modNameToPath
                            , stripCurrySuffix )
-import System.Directory    ( doesDirectoryExist, doesFileExist
-                           , findFileWithSuffix, getAbsolutePath
+import System.Directory    ( doesDirectoryExist, doesFileExist, getAbsolutePath
                            , getDirectoryContents, getHomeDirectory
                            , renameFile, setCurrentDirectory )
 import System.FilePath     ( searchPathSeparator, splitExtension
@@ -352,8 +351,8 @@ processCommand rst cmds
   | otherwise        = case matchedCmds of
       []            -> skipCommand $ "unknown command: ':" ++ cmds ++ "'"
       [(fcmd, act)] -> if fcmd `elem` ["eval","load","quit","reload"]
-                       then act rst (strip args)
-                       else unsafeExec rst $ act rst (strip args)
+                         then act rst (strip args)
+                         else unsafeExec rst $ act rst (strip args)
       (_:_:_)       -> skipCommand $ "ambiguous command: ':" ++ cmds ++ "'"
  where (cmd, args) = break (==' ') cmds
        matchedCmds = filter (isPrefixOf (map toLower cmd) . fst) replCommands
@@ -405,12 +404,11 @@ processAdd :: ReplState -> String -> IO (Maybe ReplState)
 processAdd rst args
   | null args = skipCommand "Missing module name"
   | otherwise = Just `fmap` foldIO add rst (words args)
-  where
-    add rst' m = let mdl = stripCurrySuffix m in
-      if validModuleName mdl
+ where
+  add rst' m = let mdl = stripCurrySuffix m in
+    if validModuleName mdl
       then do
-        mbf <- findFileWithSuffix (moduleNameToPath mdl) [".curry", ".lcurry"]
-                                  (loadPaths rst')
+        mbf <- lookupModuleSource (loadPaths rst') mdl
         case mbf of
           Nothing -> do
             writeErrorMsg $ "Source file of module '" ++ mdl ++ "' not found"
@@ -419,14 +417,14 @@ processAdd rst args
       else do writeErrorMsg $ "Illegal module name (ignored): " ++ mdl
               return rst'
 
-    insert m []        = [m]
-    insert m ms@(n:ns)
-      | m < n     = m : ms
-      | m == n    = ms
-      | otherwise = n : insert m ns
+  insert m []        = [m]
+  insert m ms@(n:ns)
+    | m < n     = m : ms
+    | m == n    = ms
+    | otherwise = n : insert m ns
 
-    foldIO _ a []      =  return a
-    foldIO f a (x:xs)  =  f a x >>= \fax -> foldIO f fax xs
+  foldIO _ a []     = return a
+  foldIO f a (x:xs) = f a x >>= \fax -> foldIO f fax xs
 
 --- Process :browse command
 processBrowse :: ReplState -> String -> IO (Maybe ReplState)
@@ -457,16 +455,16 @@ processCompile rst args = do
 processEdit :: ReplState -> String -> IO (Maybe ReplState)
 processEdit rst args = do
   modname <- getModuleName rst args
-  mbf <- findFileWithSuffix (moduleNameToPath modname) [".curry", ".lcurry"]
-                            (loadPaths rst)
+  mbf <- lookupModuleSource (loadPaths rst) modname
   editenv <- getEnv "EDITOR"
   let editcmd  = rcValue (rcVars rst) "editcommand"
       editprog = if null editcmd then editenv else editcmd
   if null editenv && null editcmd
     then skipCommand "no editor defined"
     else maybe (skipCommand "source file not found")
-          (\fn -> system (editprog ++ " " ++ fn ++ "& ") >> return (Just rst))
-          mbf
+               (\ (_,fn) -> do system (editprog ++ " " ++ fn ++ "& ")
+                               return (Just rst))
+               mbf
 
 --- Process :eval command
 processEval :: ReplState -> String -> IO (Maybe ReplState)
@@ -568,11 +566,10 @@ processSave rst args
 processShow :: ReplState -> String -> IO (Maybe ReplState)
 processShow rst args = do
   modname <- getModuleName rst args
-  mbf <- findFileWithSuffix (moduleNameToPath modname) [".curry", ".lcurry"]
-                            (loadPaths rst)
+  mbf <- lookupModuleSource (loadPaths rst) modname
   case mbf of
     Nothing -> skipCommand "source file not found"
-    Just fn -> do
+    Just (_,fn) -> do
       pager <- getEnv "PAGER"
       let rcshowcmd = rcValue (rcVars rst) "showcommand"
           showprog  = if not (null rcshowcmd)
