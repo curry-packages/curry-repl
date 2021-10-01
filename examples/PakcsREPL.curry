@@ -5,13 +5,12 @@
 ---     > cypm curry :l PakcsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version June 2021
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module PakcsREPL where
 
-import Data.List        ( intercalate )
-import System.CurryPath ( inCurrySubdir, modNameToPath, sysLibPath )
+import System.CurryPath ( inCurrySubdir, modNameToPath )
 
 import REPL.Compiler
 import REPL.Main        ( mainREPL )
@@ -43,7 +42,7 @@ pakcs = CCDescription
   (\s -> ":compile " ++ s ++ " :quit")    -- option to compile only
   (\s -> ":load " ++ s ++ " :save :quit") -- option to create an executable
   cleanCmd                                -- command to clean module
-  [intOpt, firstOpt]
+  [intOpt, firstOpt, printDepthtOpt]
  where
   cleanCmd m =
     "/bin/rm -f " ++ inCurrySubdir m ++ ".* " ++ modNameToPath m ++ ".curry"
@@ -58,16 +57,26 @@ intOpt :: CCOption
 intOpt = CCOption
   "+/-interactive "
   "turn on/off interactive evaluation of main expression"
-  [ ("-interactive",":set -interactive")
-  , ("+interactive",":set +interactive")
+  [ ConstOpt "-interactive" ":set -interactive"
+  , ConstOpt "+interactive" ":set +interactive"
   ]
 
 firstOpt :: CCOption
 firstOpt = CCOption
   "+/-first       "
   "turn on/off printing only first value/solution"
-  [ ("-first",":set -first")
-  , ("+first",":set +first")
+  [ ConstOpt "-first" ":set -first"
+  , ConstOpt "+first" ":set +first"
   ]
+
+printDepthtOpt :: CCOption
+printDepthtOpt = CCOption
+  "printdepth <n> "
+  "set print depth to <n> (0 = unlimited)"
+  [ ArgOpt "printdepth" "0" showOpt ]
+ where
+  showOpt s = case reads s :: [(Int,String)] of
+    [(n,"")] | n >= 0 -> Just (":set printdepth " ++ s)
+    _                 -> Nothing
 
 ------------------------------------------------------------------------------

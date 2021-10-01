@@ -42,7 +42,7 @@ data ReplState = ReplState
   , safeExec     :: Bool       -- safe execution mode without I/O actions
   , parseOpts    :: String     -- additional options for the front end
   , rtsArgs      :: String     -- run-time arguments passed to main application
-  , cmpOpts      :: [(String,String)] -- compiler-specific options
+  , cmpOpts      :: [CCOptionImpl] -- current compiler-specific options
   , quit         :: Bool       -- terminate the REPL?
   , exitStatus   :: Int        -- exit status (set in case of REPL errors)
   , sourceguis   :: [(String,(String,Handle))] -- handles to SourceProgGUIs

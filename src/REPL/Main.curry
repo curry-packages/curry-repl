@@ -699,6 +699,8 @@ processSetOption rst option
   matched      = filter (isPrefixOf (map toLower opt) . fst)
                         (replOptions rst)
 
+-- Returns a list of pairs of option names and the corresponding
+-- action to set the option with a given parameter in the state.
 replOptions :: ReplState
             -> [(String, ReplState -> String -> IO (Maybe ReplState))]
 replOptions rst =
@@ -725,11 +727,20 @@ replOptions rst =
   ] ++
   concatMap setCmpOpt (ccOpts (compiler rst))
  where
-  setCmpOpt (CCOption _ _ tags) = map (setOptTag tags) tags
-  setOptTag alltags (tag,co) =
+  setCmpOpt (CCOption _ _ tags) = map setOptTag tags
+
+  setOptTag opt@(ConstOpt tag _) =
     (tag,
-     \r _ -> return (Just r { cmpOpts = (tag,co) :
-                                     filter (`notElem` alltags) (cmpOpts r) }))
+     \r _ -> return (Just r { cmpOpts = map (replaceCompilerOption opt)
+                                            (cmpOpts r) }))
+  setOptTag (ArgOpt tag _ fo) = (tag, checkArg)
+   where
+    checkArg r a =
+      maybe (skipCommand "Illegal option argument!")
+            (\_ -> return (Just r { cmpOpts = map (replaceCompilerOption
+                                                     (ArgOpt tag a fo))
+                                                  (cmpOpts r) }))
+            (fo a)
 
 setPrompt :: ReplState -> String -> IO (Maybe ReplState)
 setPrompt rst p
@@ -773,7 +784,7 @@ printOptions rst = putStrLn $ unlines $ filter notNull
         , ("+/-echo"   , "turn on/off echoing of commands")
         , ("+/-show"   , "use 'Prelude.show' to show evaluation results")
         , ("+/-bindings", "show bindings of free variables in initial goal")
-        ] ++ showCompilerOptions (ccOpts (compiler rst)))) ++
+        ] ++ map showCompilerOptionDescr (ccOpts (compiler rst)))) ++
   [ showCurrentOptions rst ]
 
 showCurrentOptions :: ReplState -> String
@@ -792,7 +803,7 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
           , showOnOff (withEcho     rst) ++ "echo"
           , showOnOff (withShow     rst) ++ "show"
           , showOnOff (showTime     rst) ++ "time"
-          ] ++ map fst (cmpOpts rst)) ] ++
+          ] ++ map showCompilerOption (cmpOpts rst)) ] ++
   (if verbose rst > 2
      then [ "\nProperties from rc file:" ] ++
           formatVarVals " = " (rcVars rst) ++
@@ -1168,7 +1179,7 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
     (if ccCurryPath (compiler rst)
        then []
        else map ("-i" ++) (loadPaths rst)) ++
-    filter notNull (map snd (cmpOpts rst)) ++
+    filter notNull (map mapCompilerOption (cmpOpts rst)) ++
     (if null (parseOpts rst)
       then []
       else [(ccParseOpt (compiler rst)) (parseOpts rst)])

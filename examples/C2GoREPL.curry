@@ -5,7 +5,7 @@
 ---     > cypm curry :l C2GoREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version June 2021
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module C2GoREPL where
@@ -42,10 +42,10 @@ c2go = CCDescription
   (\s -> "--compile " ++ s)      -- option to compile only
   (\s -> "--noimports " ++ s)    -- option to create an executable
   cleanCmd                       -- command to clean module
-  [stratOpt, intOpt, firstOpt]
+  [stratOpt, intOpt, firstOpt, resultsOpt, errDepthtOpt]
  where
   cleanCmd m =
-    "/bin/rm -f " ++ inCurrySubdir m ++ ".* " ++ modNameToPath m ++ ".curry"
+    "/bin/rm -f '" ++ inCurrySubdir m ++ ".*' '" ++ modNameToPath m ++ ".curry'"
 
 c2goBanner :: String
 c2goBanner = unlines [bannerLine, bannerText, bannerLine]
@@ -57,25 +57,45 @@ stratOpt :: CCOption
 stratOpt = CCOption
   "fs/dfs/bfs     "
   "search strategy (fair / depth-first / breadth-first)"
-  [ ("fs" ,"--fs")
-  , ("dfs","--dfs")
-  , ("bfs","--bfs")
+  [ ConstOpt "fs"  "--fs"
+  , ConstOpt "dfs" "--dfs"
+  , ConstOpt "bfs" "--bfs"
   ]
 
 intOpt :: CCOption
 intOpt = CCOption
   "+/-interactive "
   "turn on/off interactive evaluation of main expression"
-  [ ("-interactive","")
-  , ("+interactive","--interactive")
+  [ ConstOpt "-interactive" ""
+  , ConstOpt "+interactive" "--interactive"
   ]
 
 firstOpt :: CCOption
 firstOpt = CCOption
   "+/-first       "
   "turn on/off printing only first value/solution"
-  [ ("-first","")
-  , ("+first","--first")
+  [ ConstOpt "-first" ""
+  , ConstOpt "+first" "--first"
   ]
+
+resultsOpt :: CCOption
+resultsOpt = CCOption
+  "results <n>   "
+  "set maximum number of results to be computed\n(default: 0 = infinite)"
+  [ ArgOpt "results" "0" showOpt ]
+ where
+  showOpt s = case reads s :: [(Int,String)] of
+    [(n,"")] | n >= 0 -> Just ("--results=" ++ s)
+    _                 -> Nothing
+
+errDepthtOpt :: CCOption
+errDepthtOpt = CCOption
+  "errdepth <n>   "
+  "set print depth of expressions in error messages:\nn>0: last n nodes from error point\nn=0: do not print expressions (default)\nn<0: print complete expression"
+  [ ArgOpt "errdepth" "0" showOpt ]
+ where
+  showOpt s = case reads s :: [(Int,String)] of
+    [(_,"")] -> Just ("--errdepth=" ++ s)
+    _        -> Nothing
 
 ------------------------------------------------------------------------------

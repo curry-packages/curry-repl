@@ -70,15 +70,50 @@ data CCDescription = CCDescription
   , ccOpts      :: [CCOption]       -- list of options for the compiler
   }
 
---- An option implemented by a Curry compiler.
---- It consists a short and long description and a list of selections,
---- where each selection consists of a tag and the option passed
---- to the compiler if this value is selected.
+--- The specification of an option implemented by a Curry compiler.
+--- It consists a short and long description (used in help messages)
+--- and a list of selections, where each selection is an option
+--- implementation containing a tag.
 --- All tags of an option are exclusive, i.e., at most one of them
 --- can be set.
-data CCOption = CCOption String String [(String,String)]
+data CCOption = CCOption String String [CCOptionImpl]
 
-showCompilerOptions :: [CCOption] -> [(String,String)]
-showCompilerOptions = map (\ (CCOption s1 s2 _) -> (s1, s2))
+--- Maps a compiler option into the pair of their short and long description.
+showCompilerOptionDescr :: CCOption -> (String,String)
+showCompilerOptionDescr (CCOption s1 s2 _) = (s1, s2)
+
+--- Data type to specify the implementation of a compiler option.
+--- A constant option `ConstOpt` consists of a tag (shown in the REPL)
+--- and the conrete option passed to the Curry compiler when the tag is set.
+--- An argument option `ArgOpt` consists of a tag (shown in the REPL),
+--- an argument provided when the option is set, and a mapping from the
+--- argument to the concrete option passed to the Curry compiler (which
+--- is `Nothing` if the argument is not valid).
+data CCOptionImpl = ConstOpt String String
+                  | ArgOpt   String String (String -> Maybe String)
+
+--- The tag of a compiler option.
+tagOfCompilerOption :: CCOptionImpl -> String
+tagOfCompilerOption (ConstOpt t _) = t
+tagOfCompilerOption (ArgOpt t _ _) = t
+
+--- Shows a specific compiler option in user-readable form.
+showCompilerOption :: CCOptionImpl -> String
+showCompilerOption (ConstOpt o _) = o
+showCompilerOption (ArgOpt o a _) = o ++ '=' : a
+
+--- Maps a specific compiler option into the option passed
+--- to the Curry compiler.
+mapCompilerOption :: CCOptionImpl -> String
+mapCompilerOption (ConstOpt _ co) = co
+mapCompilerOption (ArgOpt _ a fo) = maybe "" id (fo a)
+
+--- Replaces a compiler option by a compiler option (given as the first
+--- argument) if their tags match.
+replaceCompilerOption :: CCOptionImpl -> CCOptionImpl -> CCOptionImpl
+replaceCompilerOption newopt oldopt =
+  if tagOfCompilerOption newopt == tagOfCompilerOption oldopt
+    then newopt
+    else oldopt
 
 ------------------------------------------------------------------------------

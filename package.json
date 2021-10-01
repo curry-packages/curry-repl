@@ -1,6 +1,6 @@
 {
     "name": "curry-repl",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "author": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "A universal REPL which can be used on top of a Curry compiler",
     "category": [ "Programming" ],

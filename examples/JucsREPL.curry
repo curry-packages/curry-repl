@@ -7,14 +7,13 @@
 ---     > cypm curry :l JucsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version June 2021
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module JucsREPL where
 
 import Curry.Compiler.Distribution ( installDir )
-import Data.List         ( intercalate )
-import System.CurryPath ( inCurrySubdir, modNameToPath, sysLibPath )
+import System.CurryPath ( inCurrySubdir, modNameToPath )
 
 import REPL.Compiler
 import REPL.Main         ( mainREPL )
@@ -60,24 +59,24 @@ stratOpt :: CCOption
 stratOpt = CCOption
   "dfs/bfs     "
   "search strategy (depth-first / breadth-first)"
-  [ ("dfs","--dfs")
-  , ("bfs","--bfs")
+  [ ConstOpt "dfs" "--dfs"
+  , ConstOpt "bfs" "--bfs"
   ]
 
 intOpt :: CCOption
 intOpt = CCOption
   "+/-interactive "
   "turn on/off interactive evaluation of main expression"
-  [ ("-interactive","")
-  , ("+interactive","--interactive")
+  [ ConstOpt "-interactive" ""
+  , ConstOpt "+interactive" "--interactive"
   ]
 
 firstOpt :: CCOption
 firstOpt = CCOption
   "+/-first       "
   "turn on/off printing only first value/solution"
-  [ ("-first","")
-  , ("+first","--first")
+  [ ConstOpt "-first" ""
+  , ConstOpt "+first" "--first"
   ]
 
 ------------------------------------------------------------------------------
