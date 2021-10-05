@@ -725,19 +725,21 @@ replOptions rst =
   , ("+time"        , \r _ -> return (Just r { showTime     = True  }))
   , ("-time"        , \r _ -> return (Just r { showTime     = False }))
   ] ++
-  concatMap setCmpOpt (ccOpts (compiler rst))
+  concatMap setCmpOpt ccopts
  where
+  ccopts = ccOpts (compiler rst)
+
   setCmpOpt (CCOption _ _ tags) = map setOptTag tags
 
   setOptTag opt@(ConstOpt tag _) =
     (tag,
-     \r _ -> return (Just r { cmpOpts = map (replaceCompilerOption opt)
+     \r _ -> return (Just r { cmpOpts = map (replaceCompilerOption ccopts opt)
                                             (cmpOpts r) }))
   setOptTag (ArgOpt tag _ fo) = (tag, checkArg)
    where
     checkArg r a =
       maybe (skipCommand "Illegal option argument!")
-            (\_ -> return (Just r { cmpOpts = map (replaceCompilerOption
+            (\_ -> return (Just r { cmpOpts = map (replaceCompilerOption ccopts
                                                      (ArgOpt tag a fo))
                                                   (cmpOpts r) }))
             (fo a)

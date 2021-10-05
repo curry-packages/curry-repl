@@ -92,10 +92,20 @@ showCompilerOptionDescr (CCOption s1 s2 _) = (s1, s2)
 data CCOptionImpl = ConstOpt String String
                   | ArgOpt   String String (String -> Maybe String)
 
---- The tag of a compiler option.
+--- The tag of a specific compiler option.
 tagOfCompilerOption :: CCOptionImpl -> String
 tagOfCompilerOption (ConstOpt t _) = t
 tagOfCompilerOption (ArgOpt t _ _) = t
+
+--- The tags and all alternative tags of a specific compiler option
+--- where the complete list of options is provided as the first argument.
+tagsOfCompilerOption :: [CCOption] -> CCOptionImpl -> [String]
+tagsOfCompilerOption copts opt =
+  concatMap (\ (CCOption _ _ opts) -> map tagOfCompilerOption opts)
+            (filter (\ (CCOption _ _ opts) ->
+                        opttag `elem` map tagOfCompilerOption opts)
+                    copts)
+ where opttag = tagOfCompilerOption opt
 
 --- Shows a specific compiler option in user-readable form.
 showCompilerOption :: CCOptionImpl -> String
@@ -108,11 +118,13 @@ mapCompilerOption :: CCOptionImpl -> String
 mapCompilerOption (ConstOpt _ co) = co
 mapCompilerOption (ArgOpt _ a fo) = maybe "" id (fo a)
 
---- Replaces a compiler option by a compiler option (given as the first
---- argument) if their tags match.
-replaceCompilerOption :: CCOptionImpl -> CCOptionImpl -> CCOptionImpl
-replaceCompilerOption newopt oldopt =
-  if tagOfCompilerOption newopt == tagOfCompilerOption oldopt
+--- Replaces a compiler option by a compiler option (given as the second
+--- argument) if their tags belong to the same compiler option.
+--- The list of all compiler options a given as the first argument.
+replaceCompilerOption :: [CCOption] -> CCOptionImpl -> CCOptionImpl
+                      -> CCOptionImpl
+replaceCompilerOption copts newopt oldopt =
+  if tagOfCompilerOption newopt `elem` tagsOfCompilerOption copts oldopt
     then newopt
     else oldopt
 
