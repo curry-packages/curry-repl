@@ -908,14 +908,7 @@ compileMainExpression rst exp runrmexec = do
           then do
             timecmd <- getTimeCmd rst "Execution"
                          (unwords ["./" ++ mainexpmod, rtsArgs rst])
-            execcmd <- getTimeoutCmd rst timecmd
-            writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
-            ecx <- system execcmd
-            unless (ecx == 0) $ writeVerboseInfo rst 1 $
-              "Execution terminated with exit status: " ++ show ecx
-            unlessKeepFiles rst $
-              removeFileIfExists mainexpmod -- remove executable
-            return ecx
+            getTimeoutCmd rst timecmd >>= execAndRemove rst mainexpmod
           else return 0
 
   generateMainExpFile = do
@@ -929,6 +922,38 @@ compileMainExpression rst exp runrmexec = do
                                    makeMainExpMonomorphic rst mprog mexp >>=
                                   maybe (return 1) (const (return 0))))
 
+-- Invokes a command (third argument) and removes the executable (second
+-- argument) after execution (unless `keepfiles` option is set).
+-- In order to support the deletion of the executable event after Ctrl-C,
+-- the execution is wrapped into a shell which traps interrupts.
+execAndRemove :: ReplState -> String -> String -> IO Int
+execAndRemove rst executable execcmd = do
+  writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
+  let scriptfile = executable ++ ".sh"
+  writeFile scriptfile (shellScript scriptfile)
+  ecx <- system $ "/bin/sh " ++ scriptfile
+  unless (ecx == 0) $ writeVerboseInfo rst 1 $
+    "Execution terminated with exit status: " ++ show ecx
+  unlessKeepFiles rst $ do
+    removeFileIfExists scriptfile
+    removeFileIfExists executable
+  return ecx
+ where
+  shellScript scriptfile = unlines
+    [ "#!/bin/sh"
+    , "interrupt_exit() {"
+    , "  CODE=$?"
+    , "  echo \"INTERRUPT\""
+    , (if keepFiles rst
+         then ""
+         else "  /bin/rm -f " ++ executable ++ " " ++ scriptfile ++ " && ")
+      ++ "  exit $CODE"
+    , "}"
+    , "trap 'interrupt_exit' 2"
+    , execcmd
+    ]
+
+
 -- Removes a Curry module and intermediate files.
 cleanModule :: ReplState -> String -> IO ()
 cleanModule rst mainmod = unlessKeepFiles rst $ do
@@ -940,9 +965,11 @@ cleanModule rst mainmod = unlessKeepFiles rst $ do
 
 -- Executes an I/O action if the RC values `keepfiles` is not `yes`.
 unlessKeepFiles :: ReplState -> IO () -> IO ()
-unlessKeepFiles rst act = unless keepfiles act
- where
-  keepfiles = rcValue (rcVars rst) "keepfiles" == "yes"
+unlessKeepFiles rst act = unless (keepFiles rst) act
+
+-- Returns `True` if RC value `keepfiles` is set to `yes`.
+keepFiles :: ReplState -> Bool
+keepFiles rst = rcValue (rcVars rst) "keepfiles" == "yes"
 
 ---------------------------------------------------------------------------
 -- Transforming main expression into appropriate form.
