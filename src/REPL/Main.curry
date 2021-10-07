@@ -941,15 +941,14 @@ execAndRemove rst executable execcmd = do
  where
   shellScript scriptfile = unlines
     [ "#!/bin/sh"
-    , "interrupt_exit() {"
-    , "  CODE=$?"
-    , "  echo \"INTERRUPT\""
+    , "cleanup_mainfiles() {"
+    , "  ECODE=$?"
     , (if keepFiles rst
          then ""
          else "  /bin/rm -f " ++ executable ++ " " ++ scriptfile ++ " && ")
-      ++ "  exit $CODE"
+      ++ "  exit $ECODE"
     , "}"
-    , "trap 'interrupt_exit' 2"
+    , "trap 'cleanup_mainfiles' 1 2 3 6"
     , execcmd
     ]
 
