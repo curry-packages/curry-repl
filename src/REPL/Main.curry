@@ -1045,13 +1045,13 @@ breakWhereFreeClause exp =
 
 
 --- If the main expression is polymorphic, make it monomorphic by adding a type
---- declaration where type variables are replaced by type "()". Before,
---- type variables with a numeric constraint like "Num"/"Integral" or
---- "Fractional" are defaulted to the types "Int" or "Float", respectively.
---- The type of the main expression is only allowed to contain
+--- declaration where type variables are replaced by type `()`. Before,
+--- type variables with a numeric constraint like `Num`/`Integral` or
+--- `Fractional`/`Floating` are defaulted to the types `Int` or `Float`,
+--- respectively. The type of the main expression is only allowed to contain
 --- numeric constraints.
---- If the main exp has type "IO t" where t is monomorphic and not a function,
---- t /= (), and `withShow` is `True`, then ">>= print" is added
+--- If the main exp has type `IO t` where t is monomorphic and not a function,
+--- t /= (), and `withShow` is `True`, then `>>= print` is added
 --- to the expression to print the computed value.
 --- The arguments are the AbstractCurry program of the main expression
 --- and the main expression as a string.
@@ -1110,12 +1110,12 @@ makeMainExpMonomorphic rst prog exp = case prog of
                             then (e,te)
                             else ("Prelude.show (" ++ e ++ ")", stringType)
 
--- Defaults type variables with a numeric constraint like "Num"/"Integral" or
--- "Fractional" to the types "Int" or "Float", respectively. Moreover,
--- existing "Data", "Eq", "Ord", "Read", and "Show" constraints for the same
--- type variable are removed.
--- Finally, remaining type variables with "Data" and "Monad" constraints are
--- defaulted to "Prelude.Bool" and "Prelude.IO", respectively.
+-- Defaults type variables with a numeric constraint like `Num`/`Integral` or
+-- `Fractional`/`Floating` to the types `Int` or `Float`, respectively.
+-- Moreover, existing `Data`, `Eq`, `Ord`, `Read`, and `Show` constraints
+-- for the same type variable are removed.
+-- Finally, remaining type variables with `Data` and `Monad` constraints are
+-- defaulted to `Prelude.Bool` and `Prelude.IO`, respectively.
 defaultQualTypeExpr :: CQualTypeExpr -> CQualTypeExpr
 defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
   defaultMonad $ defaultData $ defaultTExp ctxt (CQualType (CContext []) cty)
@@ -1138,8 +1138,10 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
   defaultTExp []     qty                           = qty
   defaultTExp (c:cs) (CQualType (CContext cs2) ty) = case c of
     (("Prelude", ptype), CTVar tv) ->
-      if ptype `elem` ["Num", "Integral", "Fractional"]
-        then let defptype = if ptype == "Fractional" then "Float" else "Int"
+      if ptype `elem` ["Num", "Integral", "Fractional", "Floating"]
+        then let defptype = if ptype `elem` ["Fractional", "Floating"]
+                              then "Float"
+                              else "Int"
              in defaultTExp
                   (removeConstraints tv defptype cs)
                   (CQualType (CContext (removeConstraints tv defptype cs2))
