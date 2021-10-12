@@ -2,7 +2,7 @@
 --- The state of the REPL.
 ---
 --- @author  Michael Hanus
---- @version September 2021
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module REPL.State where
@@ -20,6 +20,7 @@ import REPL.Compiler
 
 data ReplState = ReplState
   { compiler     :: CCDescription
+  , usingOption  :: String     -- option for "using" text in banner
   , rcVars       :: [(String, String)] -- content of rc file
   , verbose      :: Int        -- verbosity level:
                                -- 0 = errors and warnings
@@ -56,6 +57,7 @@ initReplState cd = do
   mainmod <- getUnusedMod ("Main" ++ compilerid ++ show pid)
   return $ ReplState
     { compiler     = cd
+    , usingOption  = ""
     , rcVars       = []
     , verbose      = 1
     , libPaths     = splitSearchPath (ccLibPath cd)

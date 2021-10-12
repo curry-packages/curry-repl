@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version September 2021
+--- @version October 2021
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -71,6 +71,8 @@ processArgsAndStart rst []
   | quit rst  = cleanUpAndExitRepl rst
   | otherwise = do
       writeVerboseInfo rst 1 (ccBanner (compiler rst))
+      unless (null (usingOption rst)) $ writeVerboseInfo rst 1 $
+        "(using " ++ usingOption rst ++ ")\n"
       writeVerboseInfo rst 1 $
         "Type \":h\" for help  (contact: " ++ ccEmail (compiler rst) ++ ")"
       when (currMod rst == "Prelude") $ do
@@ -83,6 +85,8 @@ processArgsAndStart rst (arg:args)
   = processArgsAndStart rst args
   -- ignore '--nocypm|-n' or '--noreadline'
   -- (since they already processed by separate script to invoke the REPL)
+  | arg == "--using" && not (null args)
+  = processArgsAndStart rst { usingOption = head args } (tail args)
   | arg `elem` ["-n", "--nocypm", "--noreadline"]
   = processArgsAndStart rst args
   | arg == "-h" || arg == "--help" || arg == "-?"
@@ -128,6 +132,7 @@ printHelp = putStrLn $ unlines
   , "--base-version    : show the version of the base libraries and quit"
   , "-q|--quiet        : work silently"
   , "-n|--nocypm       : do not invoke `cypm' to compute package load path"
+  , "--using <s>       : set string for 'using' message in banner"
   , "--noreadline      : do not use input line editing via command `rlwrap'"
   , "-Dprop=val        : define rc property `prop' as `val'"
   , ":<cmd> <args>     : commands of the interactive environment"
