@@ -1127,16 +1127,16 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
  where
   defaultData qty@(CQualType (CContext dctxt) dcty) = case dctxt of
     [] -> qty
-    (qtcons, CTVar tv) : cs | qtcons == ("Prelude","Data")
+    (qtcons, CTVar tv) : cs | qtcons == pre "Data"
       -> defaultData (CQualType (CContext cs)
-                        (substTypeVar tv (CTCons ("Prelude","Bool")) dcty))
+                        (substTypeVar tv (CTCons (pre "Bool")) dcty))
     _ -> qty
 
   defaultMonad qty@(CQualType (CContext dctxt) dcty) = case dctxt of
     [] -> qty
-    (qtcons, CTVar tv) : cs | qtcons == ("Prelude","Monad")
+    (qtcons, CTVar tv) : cs | qtcons `elem` map pre ["Monad","MonadFail"]
       -> defaultMonad (CQualType (CContext cs)
-                         (substTypeVar tv (CTCons ("Prelude","IO")) dcty))
+                         (substTypeVar tv (CTCons (pre "IO")) dcty))
     _ -> qty
 
   defaultTExp :: [CConstraint] -> CQualTypeExpr -> CQualTypeExpr
@@ -1150,7 +1150,7 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
              in defaultTExp
                   (removeConstraints tv defptype cs)
                   (CQualType (CContext (removeConstraints tv defptype cs2))
-                     (substTypeVar tv (CTCons ("Prelude", defptype)) ty))
+                     (substTypeVar tv (CTCons (pre  defptype)) ty))
         else defaultTExp cs (CQualType (CContext (cs2 ++ [c])) ty)
     _ -> defaultTExp cs (CQualType (CContext (cs2 ++ [c])) ty)
 

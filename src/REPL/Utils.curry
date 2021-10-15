@@ -40,7 +40,7 @@ showContext True  _             = ""
 --- Shows an AbstractCurry constraint in standard Curry syntax.
 showConstraint :: CConstraint -> String
 showConstraint ((_, name), ty) =
-  showIdentifier name ++ " " ++ showMonoTypeExpr False ty
+  showIdentifier name ++ " " ++ showMonoTypeExpr' False 2 ty
 
 --- Shows an AbstractCurry type expression in standard Curry syntax.
 --- If the first argument is True, all occurrences of type variables
@@ -56,8 +56,8 @@ showMonoTypeExpr' mono p (CFuncType     domain range) = parens (p > 0) $
 showMonoTypeExpr' _    _ (CTCons            (_,name)) = name
 showMonoTypeExpr' mono p texp@(CTApply     tcon targ) = maybe
   (parens (p > 1) $ showMonoTypeExpr' mono 2 tcon ++ " " ++
-    showMonoTypeExpr' mono 2 targ)
-  (\(mod,name) -> showTypeCons mono mod name (argsOfApply texp))
+                    showMonoTypeExpr' mono 2 targ)
+  (\ (mod,name) -> showTypeCons mono mod name (argsOfApply texp))
   (funOfApply texp)
  where
   funOfApply te = case te of CTApply (CTCons qn) _ -> Just qn
