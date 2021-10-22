@@ -1058,6 +1058,9 @@ breakWhereFreeClause exp =
 --- If the main exp has type `IO t` where t is monomorphic and not a function,
 --- t /= (), and `withShow` is `True`, then `>>= print` is added
 --- to the expression to print the computed value.
+--- Otherwise (if the main exp has type `IO t`), `>>= return` is added
+--- in order to support raising non-determinism errors during the
+--- monadic bind operation.
 --- The arguments are the AbstractCurry program of the main expression
 --- and the main expression as a string.
 --- The result is Nothing (if some error occurred) or the transformed
@@ -1079,9 +1082,10 @@ makeMainExpMonomorphic rst prog exp = case prog of
             "Defaulted type of main expression: " ++
             showMonoTypeExpr False defTy
           let (nwexp, whereclause) = breakWhereFreeClause exp
+              nwexpR               = addReturn nwexp defTy
               (nwexpS, defTyS) = if null whereclause || not (showBindings rst)
-                                   then addShow nwexp defTy
-                                   else (nwexp, defTy)
+                                   then addShow nwexpR defTy
+                                   else (nwexpR, defTy)
               mtype = showMonoTypeExpr True defTyS
               mexp  = "(" ++ nwexpS ++ " :: " ++ mtype ++ ") " ++ whereclause
           writeMainExpFile rst (modsOfType defTy) (Just mtype) mexp
@@ -1104,9 +1108,14 @@ makeMainExpMonomorphic rst prog exp = case prog of
                         (\p -> return $ Just (p,newexp))
    where
     newexp = let (nwexp, whereclause) = breakWhereFreeClause exp
+                 nwexpR               = addReturn nwexp ty
              in if null whereclause || not (showBindings rst)
-                  then fst (addShow nwexp ty) ++ whereclause
-                  else nwexp ++ whereclause
+                  then fst (addShow nwexpR ty) ++ whereclause
+                  else nwexpR ++ whereclause
+
+    addReturn e te = if isIOType te
+                       then '(' : e ++ ") Prelude.>>= Prelude.return"
+                       else e
 
     addShow e te = if isIOReturnType te && withShow rst
                      then ('(' : e ++ ") Prelude.>>= Prelude.print",
