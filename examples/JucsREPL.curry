@@ -7,7 +7,7 @@
 ---     > cypm curry :l JucsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version October 2021
+--- @version February 2022
 ------------------------------------------------------------------------------
 
 module JucsREPL where
@@ -28,6 +28,7 @@ jucs = CCDescription
   "jucs"                               -- the compiler name
   (1,0,0)                              -- the version number
   jucsBanner                           -- the banner
+  [] -- description of specific REPL options
   jucsHome                             -- home directory of the compiler
   "info@curry-lang.org"                -- contact email
   (installDir ++ "/bin/pakcs-frontend") -- executable of the Curry front end

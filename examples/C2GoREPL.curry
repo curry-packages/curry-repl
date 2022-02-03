@@ -30,6 +30,12 @@ c2go = CCDescription
   "curry2go"                     -- the compiler name
   (1,0,0)                        -- the version number
   c2goBanner                     -- the banner
+  -- description of specific REPL options:
+  [ ("-n|--nocypm",
+     "do not invoke `cypm' to compute package load path")
+  , ("--noreadline",
+     "do not use input line editing via command `rlwrap'")
+  ]
   c2goHome                       -- home directory of the compiler
   "info@curry-lang.org"          -- contact email
   (c2goHome ++ "/bin/curry2go-frontend") -- executable of the Curry front end

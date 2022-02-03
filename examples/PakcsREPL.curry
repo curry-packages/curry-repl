@@ -5,7 +5,7 @@
 ---     > cypm curry :l PakcsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version October 2021
+--- @version February 2022
 ------------------------------------------------------------------------------
 
 module PakcsREPL where
@@ -30,6 +30,12 @@ pakcs = CCDescription
   "pakcs"                                 -- the compiler name
   (3,4,0)                                 -- the version number
   pakcsBanner                             -- the banner
+  -- description of specific REPL options:
+  [ ("-n|--nocypm",
+     "do not invoke `cypm' to compute package load path")
+  , ("--noreadline",
+     "do not use input line editing via command `rlwrap'")
+  ]
   pakcsHome                               -- home directory of the compiler
   "pakcs@curry-lang.org"                  -- contact email
   (pakcsHome ++ "/bin/pakcs-frontend") -- executable of the Curry front end

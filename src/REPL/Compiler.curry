@@ -55,6 +55,9 @@ data CCDescription = CCDescription
   { ccName      :: String           -- the name of the compiler
   , ccVersion   :: (Int,Int,Int)    -- major/minor/revision version
   , ccBanner    :: String           -- the banner shown for the compiler
+  , ccMainOpts  :: [(String,String)]-- a description (option/explanation) of
+                                    -- further options to be listed with the
+                                    -- `--help` options of the REPL
   , ccHome      :: String           -- home directory of the compiler
   , ccEmail     :: String           -- contact email (shown at startup)
   , ccFrontend  :: String           -- the executable of the Curry front end

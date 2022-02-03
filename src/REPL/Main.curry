@@ -90,7 +90,7 @@ processArgsAndStart rst (arg:args)
   | arg `elem` ["-n", "--nocypm", "--noreadline"]
   = processArgsAndStart rst args
   | arg == "-h" || arg == "--help" || arg == "-?"
-  = printHelp >> cleanUpAndExitRepl rst
+  = printHelp rst >> cleanUpAndExitRepl rst
   | arg == "-q" || arg == "--quiet"
   = processArgsAndStart rst { verbose = 0 } args
   | arg == "-V" || arg == "--version"
@@ -105,9 +105,9 @@ processArgsAndStart rst (arg:args)
   | isCommand arg = do
     let (cmdargs, more) = break isCommand args
     mbrst <- processCommand rst (tail (unwords (arg:cmdargs)))
-    maybe printHelp (\rst' -> processArgsAndStart rst' more) mbrst
+    maybe (printHelp rst) (\rst' -> processArgsAndStart rst' more) mbrst
   | otherwise
-  = writeErrorMsg ("unknown command: " ++ unwords (arg:args)) >> printHelp
+  = writeErrorMsg ("unknown command: " ++ unwords (arg:args)) >> printHelp rst
  where
   versionOpts = ["--compiler-name", "--numeric-version", "--base-version"]
 
@@ -117,27 +117,27 @@ isCommand s = case s of
   ':' : _ -> True
   _       -> False
 
-printHelp :: IO ()
-printHelp = putStrLn $ unlines
+printHelp :: ReplState -> IO ()
+printHelp rst = putStrLn $ unlines $
   [ "Invoke interactive environment:"
   , ""
   , "    <repl> <options> [ -- <run-time arguments>]"
   , ""
   , "with options:"
-  , ""
-  , "-h|--help|-?      : show this message and quit"
-  , "-V|--version      : show version and quit"
-  , "--compiler-name   : show the compiler name and quit"
-  , "--numeric-version : show the compiler version number and quit"
-  , "--base-version    : show the version of the base libraries and quit"
-  , "-q|--quiet        : work silently"
-  , "-n|--nocypm       : do not invoke `cypm' to compute package load path"
-  , "--using <s>       : set string for 'using' message in banner"
-  , "--noreadline      : do not use input line editing via command `rlwrap'"
-  , "-Dprop=val        : define rc property `prop' as `val'"
-  , ":<cmd> <args>     : commands of the interactive environment"
-  , ""
-  ]
+  , ""] ++
+  formatVarVals ": "
+   (ccMainOpts (compiler rst) ++
+    [ ("-h|--help|-?"     , "show this message and quit")
+    , ("-V|--version"     , "show version and quit")
+    , ("--compiler-name"  , "show the compiler name and quit")
+    , ("--numeric-version", "show the compiler version number and quit")
+    , ("--base-version   ", "show the version of the base libraries and quit")
+    , ("-q|--quiet"       , "work silently")
+    , ("--using <s>"      , "set string for 'using' message in banner")
+    , ("-Dprop=val"       , "define rc property `prop' as `val'")
+    , (":<cmd> <args>"    , "commands of the interactive environment")
+    ]) ++
+  [ "" ]
 
 -- ---------------------------------------------------------------------------
 
