@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version October 2021
+--- @version February 2022
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -107,7 +107,7 @@ processArgsAndStart rst (arg:args)
     mbrst <- processCommand rst (tail (unwords (arg:cmdargs)))
     maybe (printHelp rst) (\rst' -> processArgsAndStart rst' more) mbrst
   | otherwise
-  = writeErrorMsg ("unknown command: " ++ unwords (arg:args)) >> printHelp rst
+  = writeErrorMsg ("unknown option: " ++ unwords (arg:args)) >> printHelp rst
  where
   versionOpts = ["--compiler-name", "--numeric-version", "--base-version"]
 
