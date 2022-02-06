@@ -935,7 +935,9 @@ execAndRemove :: ReplState -> String -> String -> IO Int
 execAndRemove rst executable execcmd = do
   writeVerboseInfo rst 2 $ "Executing: " ++ execcmd
   let scriptfile = executable ++ ".sh"
-  writeFile scriptfile (shellScript scriptfile)
+  let shellscript = shellScript scriptfile
+  writeFile scriptfile shellscript
+  writeVerboseInfo rst 3 $ "...with shell script:\n" ++ shellscript
   ecx <- system $ "/bin/sh " ++ scriptfile
   unless (ecx == 0) $ writeVerboseInfo rst 1 $
     "Execution terminated with exit status: " ++ show ecx
@@ -948,6 +950,8 @@ execAndRemove rst executable execcmd = do
     [ "#!/bin/sh"
     , "cleanup_mainfiles() {"
     , "  ECODE=$?"
+    , "  # change exit code 130 (Ctrl-C) to 1 to avoid exit of REPL:"
+    , "  if [ $ECODE -eq 130 ] ; then ECODE=1 ; fi"
     , (if keepFiles rst
          then ""
          else "  /bin/rm -f " ++ executable ++ " " ++ scriptfile ++ " && ")
