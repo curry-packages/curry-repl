@@ -959,6 +959,7 @@ execAndRemove rst executable execcmd = do
     , "}"
     , "trap 'cleanup_mainfiles' 1 2 3 6"
     , execcmd
+    , "######################## end of script ###################"
     ]
 
 
