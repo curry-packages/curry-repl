@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version February 2022
+--- @version July 2022
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -894,14 +894,15 @@ compileMainExpression rst exp runrmexec = do
  where
   compileProgExp = do
     ecg <- generateMainExpFile
+    let mainexpmod = mainExpMod rst
     if ecg /= 0
-      then return ecg
+      then do cleanModule rst mainexpmod
+              return ecg
       else do
         when (verbose rst > 3) $ do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
-        let mainexpmod = mainExpMod rst
-            compilecmd = curryCompilerCommand (reduceVerbose rst) ++ " " ++
+        let compilecmd = curryCompilerCommand (reduceVerbose rst) ++ " " ++
                          (ccExecOpt (compiler rst)) mainexpmod
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
