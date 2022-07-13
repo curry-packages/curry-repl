@@ -98,9 +98,18 @@ the file is updated if the default file contains new fields.
 Requirements for Curry Compilers used by CPM
 ============================================
 
-In order to use a Curry compiler together with the Curry Package
-Manager CPM, it has to support some options so that CPM can interact
-with the compiler. The Curry REPL implements these options provided
+The Curry REPL is the basic interface for an interactive Curry system.
+Thus, many Curry systems implement the commands and options provided
+by this universal REPL. This property is exploited by the
+[Curry Package Manager (CPM)](http://www.curry-lang.org/tools/cpm)
+in order to support the use of packages
+for various Curry systems. The actual requirements of CPM
+are described in the following.
+
+In order to use a Curry system together with the Curry Package
+Manager CPM, the Curry system has to support some options
+so that CPM can interact with it.
+The universal Curry REPL implements these options provided
 that the Curry compiler itself provides options about its version. If
 `curryc` is the executable of the compiler, the following options must
 exist:
@@ -110,6 +119,9 @@ exist:
 * `curryc --numeric-version`: Shows the compiler version quits.
 * `curryc --base-version`: Shows the version of the base libraries
   implemented by the compiler and quits.
+
+Note that the universal Curry REPL provides the same options,
+but they are implemented by passing them to the compiler.
 
 These options can also be combined. In this case the information
 is shown in subsequent lines, as shown in this example
@@ -121,8 +133,8 @@ for [PAKCS](http://www.informatik.uni-kiel.de/~pakcs/):
     3.0.0
 
 In order to support the use of different Curry compilers in parallel,
-the intermediate files produced by the compiler should be
-stored in the directory
+the compiler should store its generated intermediate files
+in the directory
 
     .curry/<compiler-name>-<numeric-version>
 
@@ -143,25 +155,32 @@ the Prolog target file is stored in
 Running programs
 ----------------
 
-When CPM starts a Curry system (via `cypm curry`), it sets
-the environment variable `CURRYPATH` to the load path of all
+In order to use a Curry system (and its REPL) conveniently,
+the Curry system should query CPM (by `cypm deps -p`) to get
+the value of `CURRYPATH` to load modules at startup time.
+This is usually done by a separate shell script which invokes
+the actual executable of the REPL.
+
+When CPM starts a Curry system (via the command `cypm curry`),
+it sets the environment variable `CURRYPATH` to the load path of all
 included packages and passes the option `--nocypm` to the
-executable of the Curry system. Usually, when a Curry system
-is started, it should query CPM (by `cypm deps -p`) to get
-the value of `CURRYPATH` to load modules. The option `--nocypm`
-is intended to turn off this behavior.
-Since the querying of CPM is usually done by a separate shell script
-to invoke the REPL, the implementation of this REPL just ignores
-the option `--nocypm`.
+Curry system. This option should have the effect that CPM is not invoked
+at startup time (to avoid a cyclic invocation of both systems).
+The implementation of the universal Curry REPL just ignores
+the option `--nocypm` (as mentioned above, the querying of CPM
+is usually done by a separate shell script which invokes the REPL).
 
 
 Installing executables
 ----------------------
 
-If CPM installs an executable, it passes the following options
-(REPL commands) to the compiler:
+If CPM installs an executable (by the command `cypm install`),
+it passes the following options to the Curry system
+(where `curry` denotes the main executable of the Curry system,
+i.e., the REPL):
 
-    > curryc :set v0 :load MAINMOD :save :quit
+    > curry :set v0 :load MAINMOD :save :quit
 
 (where `v0` is replaced by `v1` in debug mode).
 The execution of this command should install the executable `MAINMOD`.
+Hence, these options are also implemented by the universal Curry REPL.
