@@ -13,7 +13,7 @@ module REPL.Compiler where
 
 --- Data type for the specification of a Curry compiler invoked by the REPL.
 --- It contains the following components:
---- 
+---
 --- * The name `ccName` should be a sequence of alphanumeric characters and
 ---   is used for naming resource files, main modules etc.
 --- * The version `ccVersion` of the compiler is used by the front end
@@ -70,8 +70,16 @@ data CCDescription = CCDescription
   , ccCmplOpt   :: String -> String -- option to compile only
   , ccExecOpt   :: String -> String -- option to create an executable
   , ccCleanCmd  :: String -> String -- command to clean module and aux. files
+  , ccFreeMode  :: FreeMode         -- Information on how to show bindings for free variables
   , ccOpts      :: [CCOption]       -- list of options for the compiler
   }
+
+data FreeMode = LegacyFreeMode | CommandLineFreeMode ([(String, Int)] -> String)
+
+isLegacyFreeMode :: FreeMode -> Bool
+isLegacyFreeMode fm = case fm of
+  LegacyFreeMode -> True
+  _              -> False
 
 --- The specification of an option implemented by a Curry compiler.
 --- It consists a short and long description (used in help messages)
