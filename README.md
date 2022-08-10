@@ -80,10 +80,13 @@ The actual options are specified by data of type `CCOption`
 
 Print Bindings:
 ---------------
-When `+bindings` is on, the values of variables that are free in the to-be-evaluated expression will be shown.
-If the compiler supports the flags `-B` to enable it and`-V` for passing variable names via command line,
-the compiler is responsible for showing these bindings.
-For compilers that do not support this, the REPL will handle it in a limited way.
+
+When `+bindings` is on, the values of variables that are free in the
+to-be-evaluated expression will be shown.  If the compiler supports
+the flags `-B` to enable it and`-V` for passing variable names via
+command line, the compiler is responsible for showing these bindings.
+For compilers that do not support this, the REPL will handle it in a
+limited way.
 
 RC file:
 --------

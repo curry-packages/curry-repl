@@ -2,7 +2,7 @@
 --- The state of the REPL.
 ---
 --- @author  Michael Hanus
---- @version October 2021
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module REPL.State where

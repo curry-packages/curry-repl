@@ -5,7 +5,7 @@
 ---     > cypm curry :l PakcsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version February 2022
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module PakcsREPL where
@@ -48,6 +48,7 @@ pakcs = CCDescription
   (\s -> ":compile " ++ s ++ " :quit")    -- option to compile only
   (\s -> ":load " ++ s ++ " :save :quit") -- option to create an executable
   cleanCmd                                -- command to clean module
+  LegacyFreeMode
   [intOpt, firstOpt, printDepthtOpt]
  where
   cleanCmd m =

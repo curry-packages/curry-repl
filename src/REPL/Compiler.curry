@@ -6,7 +6,7 @@
 --- a JSON file) or statically defined in some module.
 ---
 --- @author  Michael Hanus
---- @version July 2021
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module REPL.Compiler where

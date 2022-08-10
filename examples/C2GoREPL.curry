@@ -5,7 +5,7 @@
 ---     > cypm curry :l C2GoREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version October 2021
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module C2GoREPL where
@@ -48,6 +48,7 @@ c2go = CCDescription
   (\s -> "--compile " ++ s)      -- option to compile only
   (\s -> "--noimports " ++ s)    -- option to create an executable
   cleanCmd                       -- command to clean module
+  LegacyFreeMode
   [stratOpt, intOpt, firstOpt, resultsOpt, errDepthtOpt]
  where
   cleanCmd m =

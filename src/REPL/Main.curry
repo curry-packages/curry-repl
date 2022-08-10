@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version July 2022
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -1021,7 +1021,7 @@ insertFreeVarsShowInMainExp rst (CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
                   (\p -> return $ Just (p,freevarexp,[]))
         else if isLegacyFreeMode (freeMode rst)
           then do
-            let freevarexp = addFreeShowLegacy exp freevars "" ty
+            let freevarexp = addFreeShowLegacy exp freevars whereclause ty
             writeVerboseInfo rst 2 $
               "Adding printing of bindings for free variables: " ++
                 intercalate "," freevars
@@ -1260,7 +1260,8 @@ curryCompilerCommand rst vs = unwords [ccExec (compiler rst), cmpopts]
       else [(ccParseOpt (compiler rst)) (parseOpts rst)]) ++
     (case freeMode rst of
       LegacyFreeMode            -> []
-      CommandLineFreeMode trans -> [trans (zip vs [1..])] ++ [ "-B" | showBindings rst])
+      CommandLineFreeMode trans -> [trans (zip vs [1..])] ++
+                                   [ "-B" | showBindings rst])
 
 --- Extract a module name, possibly prefixed by a path, from an argument,
 --- or return the current module name if the argument is the empty string.

@@ -7,7 +7,7 @@
 ---     > cypm curry :l JucsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version February 2022
+--- @version August 2022
 ------------------------------------------------------------------------------
 
 module JucsREPL where
@@ -41,6 +41,7 @@ jucs = CCDescription
   (\s -> s)                            -- option to compile only
   (\s -> "--standalone -m main " ++ s) -- option to create an executable
   cleanCmd                             -- command to clean module
+  LegacyFreeMode
   [stratOpt, intOpt, firstOpt]
  where
   cleanCmd m =
