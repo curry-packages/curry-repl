@@ -893,7 +893,7 @@ compileMainExpression rst exp runrmexec = do
     else compileProgExp
  where
   compileProgExp = do
-    ecg <- generateMainExpFile
+    (ecg, freevars) <- generateMainExpFile
     let mainexpmod = mainExpMod rst
     if ecg /= 0
       then do cleanModule rst mainexpmod
@@ -902,7 +902,7 @@ compileMainExpression rst exp runrmexec = do
         when (verbose rst > 3) $ do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
-        let compilecmd = curryCompilerCommand (reduceVerbose rst) ++ " " ++
+        let compilecmd = curryCompilerCommand (reduceVerbose rst) freevars ++ " " ++
                          (ccExecOpt (compiler rst)) mainexpmod
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
@@ -921,12 +921,12 @@ compileMainExpression rst exp runrmexec = do
     unlessKeepFiles rst $ removeFileIfExists $ acyFileName rst (mainExpMod rst)
     writeSimpleMainExpFile rst exp
     getAcyOfMainExpMod rst >>=
-      maybe (return 1)
-            (\cprog -> insertFreeVarsInMainExp rst cprog exp >>=
-                         maybe (return 1)
+      maybe (return (1, []))
+            (\cprog -> makeMainExpMonomorphic rst cprog exp >>=
+                         maybe (return (1, []))
                                (\ (mprog,mexp) ->
-                                   makeMainExpMonomorphic rst mprog mexp >>=
-                                  maybe (return 1) (const (return 0))))
+                                    insertFreeVarsShowInMainExp rst mprog mexp >>=
+                                    maybe (return (1, [])) (\(_,_,freevars) -> return (0, freevars))))
 
 -- Invokes a command (third argument) and removes the executable (second
 -- argument) after execution (unless `keepfiles` option is set).
@@ -984,52 +984,87 @@ keepFiles rst = rcValue (rcVars rst) "keepfiles" == "yes"
 ---------------------------------------------------------------------------
 -- Transforming main expression into appropriate form.
 
+-- In LegacyFreeMode:
 -- Insert free variables occurring in the main expressions
 -- as components of the main expression so that their bindings are shown.
 -- The arguments are the AbstractCurry program of the main expression
 -- and the main expression as a string.
+-- Also adds show/print if desired.
 -- The result is Nothing (if some error occurred) or the transformed
--- AbstractCurry program and expression.
-insertFreeVarsInMainExp :: ReplState -> CurryProg -> String
-                        -> IO (Maybe (CurryProg, String))
-insertFreeVarsInMainExp rst cprog@(CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
+-- AbstractCurry program, expression and any free variables.
+-- If not in LegacyFreeMode:
+-- Only add show/print if desired,
+-- the rest is done by the respective compiler.
+-- The result structure is the same as in LegacyFreeMode.
+insertFreeVarsShowInMainExp :: ReplState -> CurryProg -> String
+                            -> IO (Maybe (CurryProg, String, [String]))
+insertFreeVarsShowInMainExp rst (CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
   let [mfunc@(CFunc _ _ _ (CQualType _ ty) _)] = fdecls
   let freevars           = freeVarsInFuncRule mfunc
       (exp, whereclause) = breakWhereFreeClause mainexp
-  if (safeExec rst) && isIOType ty
+  if safeExec rst && isIOType ty
     then do writeErrorMsg "Operation not allowed in safe mode!"
             return Nothing
     else
       if null freevars
           || not (showBindings rst)
-          || isIOType ty
-          || (not (withShow rst) && length freevars > 10) -- due to tuple limit
+          || ((not (withShow rst) && isLegacyFreeMode (freeMode rst))
+                && length freevars > 10) -- due to tuple limit
           || null whereclause
-        then return $ Just (cprog,mainexp)
-        else do
-          let freevarexp = addFreeShow exp freevars whereclause
-          writeVerboseInfo rst 2 $
-            "Adding printing of bindings for free variables: " ++
-              intercalate "," freevars
+        then do
+          let freevarexp = addPrintShow exp ty ++ whereclause
+          writeVerboseInfo rst 2 "Adding show/print to expression"
           writeVerboseInfo rst 3 $ "New expression: " ++ freevarexp
           writeSimpleMainExpFile rst freevarexp
           getAcyOfMainExpMod rst >>=
             maybe (return Nothing)
-                  (\p -> return $ Just (p,freevarexp))
+                  (\p -> return $ Just (p,freevarexp,[]))
+        else if isLegacyFreeMode (freeMode rst)
+          then do
+            let freevarexp = addFreeShowLegacy exp freevars "" ty
+            writeVerboseInfo rst 2 $
+              "Adding printing of bindings for free variables: " ++
+                intercalate "," freevars
+            writeVerboseInfo rst 3 $ "New expression: " ++ freevarexp
+            writeSimpleMainExpFile rst freevarexp
+            getAcyOfMainExpMod rst >>=
+              maybe (return Nothing)
+                    (\p -> return $ Just (p,freevarexp, []))
+          else do
+            let freevarexp = addFreeShowCmdLine exp whereclause ty
+            writeVerboseInfo rst 2 "Adding show/print to expression"
+            writeVerboseInfo rst 3 $ "New expression: " ++ freevarexp
+            writeSimpleMainExpFile rst freevarexp
+            getAcyOfMainExpMod rst >>=
+              maybe (return Nothing)
+                    (\p -> return $ Just (p,freevarexp,freevars))
  where
-  addFreeShow exp freevars whereclause = unwords $
+  addPrintShow exp ty
+    | withShow rst = if isIOReturnType ty
+      then exp ++ " Prelude.>>= Prelude.print"
+      else "show (" ++ exp ++ ")"
+    | otherwise = exp
+
+  addFreeShowLegacy exp freevars whereclause ty = unwords $
     if withShow rst
-      then ["((\"{\""] ++
-           intersperse ("++ \", \" ")
-             (map (\v-> "++ \"" ++ v ++ " = \" ++ show " ++ v) freevars) ++
-           ["++ \"} \") ++) $!! (show (", exp, "))"] ++ [whereclause]
+      then if null freevars || isIOReturnType ty
+        then [addPrintShow exp ty, whereclause]
+        else
+             ["((\"{\""] ++
+             intersperse ("++ \", \" ")
+               (map (\v-> "++ \"" ++ v ++ " = \" ++ show " ++ v) freevars) ++
+             ["++ \"} \") ++) $!! "] ++ [addPrintShow exp ty] ++ [whereclause]
       else ["(", exp] ++
            map (\v-> ", \"" ++ v ++ ":\", " ++ v) freevars ++
            [")"] ++ [whereclause]
+  addFreeShowCmdLine exp whereclause ty = unwords $
+    if withShow rst
+      then [addPrintShow exp ty, whereclause]
+      else [exp, whereclause]
 
   freeVarsInFuncRule f = case f of
     CFunc _ _ _ _ (CRule _ rhs : _) -> freeVarsInRhs rhs
-    _ -> error "REPL.insertFreeVarsInMainGoal.freeVarsInFuncRule"
+    _ -> error "REPL.insertFreeVarsShowInMainGoal.freeVarsInFuncRule"
 
   freeVarsInRhs rhs = case rhs of
     CSimpleRhs  _ ldecls -> concatMap lvarName ldecls
@@ -1089,12 +1124,10 @@ makeMainExpMonomorphic rst prog exp = case prog of
             showMonoTypeExpr False defTy
           let (nwexp, whereclause) = breakWhereFreeClause exp
               nwexpR               = addReturn nwexp defTy
-              (nwexpS, defTyS) = if null whereclause || not (showBindings rst)
-                                   then addShow nwexpR defTy
-                                   else (nwexpR, defTy)
-              mtype = showMonoTypeExpr True defTyS
-              mexp  = "(" ++ nwexpS ++ " :: " ++ mtype ++ ") " ++ whereclause
+              mtype = showMonoTypeExpr True defTy
+              mexp  = "(" ++ nwexpR ++ " :: " ++ mtype ++ ") " ++ whereclause
           writeMainExpFile rst (modsOfType defTy) (Just mtype) mexp
+          writeVerboseInfo rst 3 $ "New expression: " ++ mexp
           when (isPolyType defTy) $ writeVerboseInfo rst 2 $
             "Type of main expression \"" ++ showMonoTypeExpr False defTy
             ++ "\" made monomorphic by replacing type variables by \"()\""
@@ -1115,20 +1148,12 @@ makeMainExpMonomorphic rst prog exp = case prog of
    where
     newexp = let (nwexp, whereclause) = breakWhereFreeClause exp
                  nwexpR               = addReturn nwexp ty
-             in if null whereclause || not (showBindings rst)
-                  then fst (addShow nwexpR ty) ++ whereclause
-                  else nwexpR ++ whereclause
+             in nwexpR ++ whereclause
 
+    -- raise ND-in-IO Errors
     addReturn e te = if isIOType te
                        then '(' : e ++ ") Prelude.>>= Prelude.return"
                        else e
-
-    addShow e te = if isIOReturnType te && withShow rst
-                     then ('(' : e ++ ") Prelude.>>= Prelude.print",
-                           ioType unitType)
-                     else if isIOType te || not (withShow rst)
-                            then (e,te)
-                            else ("Prelude.show (" ++ e ++ ")", stringType)
 
 -- Defaults type variables with a numeric constraint like `Num`/`Integral` or
 -- `Fractional`/`Floating` to the types `Int` or `Float`, respectively.
@@ -1208,7 +1233,7 @@ loadCurryProgram rst curryprog =
 -- Compile a Curry program with the Curry compiler:
 compileCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
 compileCurryProgram rst curryprog = do
-  let compilecmd = curryCompilerCommand rst ++ " " ++
+  let compilecmd = curryCompilerCommand rst [] ++ " " ++
                    (ccCmplOpt (compiler rst)) curryprog
   timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
   if ccCurryPath (compiler rst)
@@ -1218,8 +1243,8 @@ compileCurryProgram rst curryprog = do
             return $ if es == 0 then Just rst else Nothing
 
 -- Generate the base command to call the Curry compiler:
-curryCompilerCommand :: ReplState -> String
-curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
+curryCompilerCommand :: ReplState -> [String] -> String
+curryCompilerCommand rst vs = unwords [ccExec (compiler rst), cmpopts]
  where
   cmpopts = unwords $
     [ -- pass current value of "bindingoptimization" property to compiler:
@@ -1232,7 +1257,10 @@ curryCompilerCommand rst = unwords [ccExec (compiler rst), cmpopts]
     filter notNull (map mapCompilerOption (cmpOpts rst)) ++
     (if null (parseOpts rst)
       then []
-      else [(ccParseOpt (compiler rst)) (parseOpts rst)])
+      else [(ccParseOpt (compiler rst)) (parseOpts rst)]) ++
+    (case freeMode rst of
+      LegacyFreeMode            -> []
+      CommandLineFreeMode trans -> [trans (zip vs [1..])] ++ [ "-B" | showBindings rst])
 
 --- Extract a module name, possibly prefixed by a path, from an argument,
 --- or return the current module name if the argument is the empty string.

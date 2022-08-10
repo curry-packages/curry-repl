@@ -43,6 +43,7 @@ data ReplState = ReplState
   , safeExec     :: Bool       -- safe execution mode without I/O actions
   , parseOpts    :: String     -- additional options for the front end
   , rtsArgs      :: String     -- run-time arguments passed to main application
+  , freeMode     :: FreeMode   -- How to show/configure free variable bindings
   , cmpOpts      :: [CCOptionImpl] -- current compiler-specific options
   , quit         :: Bool       -- terminate the REPL?
   , exitStatus   :: Int        -- exit status (set in case of REPL errors)
@@ -71,8 +72,9 @@ initReplState cd = do
     , showTime     = False
     , withEcho     = False
     , withShow     = False
-    , showBindings = False
+    , showBindings = not (isLegacyFreeMode (ccFreeMode cd)) -- default=True unless legacy free mode is on
     , safeExec     = False
+    , freeMode     = ccFreeMode cd
     , parseOpts    = ""
     , rtsArgs      = ""
     , cmpOpts      = map (\ (CCOption _ _ tags) -> head tags) (ccOpts cd)
