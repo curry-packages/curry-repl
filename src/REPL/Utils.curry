@@ -1,5 +1,8 @@
 --- --------------------------------------------------------------------------
 --- Some auxiliary operations for the REPL
+---
+--- @author  Michael Hanus
+--- @version November 2022
 --- --------------------------------------------------------------------------
 
 module REPL.Utils
@@ -57,7 +60,8 @@ showMonoTypeExpr' _    _ (CTCons            (_,name)) = name
 showMonoTypeExpr' mono p texp@(CTApply     tcon targ) = maybe
   (parens (p > 1) $ showMonoTypeExpr' mono 2 tcon ++ " " ++
                     showMonoTypeExpr' mono 2 targ)
-  (\ (mod,name) -> showTypeCons mono mod name (argsOfApply texp))
+  (\ (mod,name) -> parens (p > 0) $
+                     showTypeCons mono mod name (argsOfApply texp))
   (funOfApply texp)
  where
   funOfApply te = case te of CTApply (CTCons qn) _ -> Just qn
