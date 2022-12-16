@@ -293,10 +293,17 @@ writeMainExpFile rst imports mtype exp =
 
   -- simple hack to avoid name conflict with "main":
   -- (better solution: pretty print parsed main expression with qualification)
-  qualifyMain s
-    | "main" `isPrefixOf` s = currMod rst ++ ".main" ++ drop 4 s
-    | "("    `isPrefixOf` s = '(' : qualifyMain (tail s)
-    | otherwise             = s
+  qualifyMain :: String -> String
+  qualifyMain [] = []
+  qualifyMain s@(x:xs)
+    | "main" `isPrefixOf` s = case drop 3 xs of
+                                []  -> currMod rst ++ ".main"
+                                c:_ | not (isAlphaNum c)
+                                    -> currMod rst ++ ".main" ++ drop 3 xs
+                                _ -> x : qualifyMain xs
+    | isAlphaNum x          = let (prev, next) = span isAlphaNum xs
+                              in x : prev ++ qualifyMain next
+    | otherwise             = x : qualifyMain xs
 
 -- Generate, read, and delete .acy file of main expression module.
 -- Return Nothing if some error occurred during parsing.
