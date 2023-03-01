@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version August 2022
+--- @version March 2023
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -909,8 +909,8 @@ compileMainExpression rst exp runrmexec = do
         when (verbose rst > 3) $ do
           putStrLn "GENERATED MAIN MODULE:"
           readFile (mainExpFile rst) >>= putStrLn
-        let compilecmd = curryCompilerCommand (reduceVerbose rst) freevars ++ " " ++
-                         (ccExecOpt (compiler rst)) mainexpmod
+        let compilecmd = curryCompilerCommand (reduceVerbose rst) freevars ++
+                         " " ++ (ccExecOpt (compiler rst)) mainexpmod
         timecompilecmd <- getTimeCmd rst "Compilation" compilecmd
         if ccCurryPath (compiler rst)
           then execCommandWithPath rst timecompilecmd [] >> return ()
@@ -930,10 +930,12 @@ compileMainExpression rst exp runrmexec = do
     getAcyOfMainExpMod rst >>=
       maybe (return (1, []))
             (\cprog -> makeMainExpMonomorphic rst cprog exp >>=
-                         maybe (return (1, []))
-                               (\ (mprog,mexp) ->
-                                    insertFreeVarsShowInMainExp rst mprog mexp >>=
-                                    maybe (return (1, [])) (\(_,_,freevars) -> return (0, freevars))))
+                       maybe
+                         (return (1, []))
+                         (\ (mprog,mexp) ->
+                             insertFreeVarsShowInMainExp rst mprog mexp >>=
+                             maybe (return (1, []))
+                                   (\ (_,_,freevars) -> return (0, freevars))))
 
 -- Invokes a command (third argument) and removes the executable (second
 -- argument) after execution (unless `keepfiles` option is set).
@@ -1047,10 +1049,9 @@ insertFreeVarsShowInMainExp rst (CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
                     (\p -> return $ Just (p,freevarexp,freevars))
  where
   addPrintShow exp ty
-    | withShow rst = if isIOReturnType ty
-      then exp ++ " Prelude.>>= Prelude.print"
-      else "show (" ++ exp ++ ")"
-    | otherwise = exp
+    | withShow rst && isIOReturnType ty = exp ++ " Prelude.>>= Prelude.print"
+    | withShow rst && not (isIOType ty) = "show (" ++ exp ++ ")"
+    | otherwise                         = exp
 
   addFreeShowLegacy exp freevars whereclause ty = unwords $
     if withShow rst
@@ -1064,6 +1065,7 @@ insertFreeVarsShowInMainExp rst (CurryProg _ _ _ _ _ _ fdecls _) mainexp = do
       else ["(", exp] ++
            map (\v-> ", \"" ++ v ++ ":\", " ++ v) freevars ++
            [")"] ++ [whereclause]
+
   addFreeShowCmdLine exp whereclause ty = unwords $
     if withShow rst
       then [addPrintShow exp ty, whereclause]
@@ -1097,9 +1099,9 @@ breakWhereFreeClause exp =
                    | otherwise                          = findWhere cs
 
 
---- If the main expression is polymorphic, make it monomorphic by adding a type
---- declaration where type variables are replaced by type `()`. Before,
---- type variables with a numeric constraint like `Num`/`Integral` or
+--- If the main expression is polymorphic, make it monomorphic by adding
+--- a type declaration where type variables are replaced by type `()`.
+--- Before, type variables with a numeric constraint like `Num`/`Integral` or
 --- `Fractional`/`Floating` are defaulted to the types `Int` or `Float`,
 --- respectively. The type of the main expression is only allowed to contain
 --- numeric constraints.
