@@ -207,6 +207,10 @@ processInput rst g
                            (\rst' -> if quit rst' then cleanUpAndExitRepl rst'
                                                   else repLoop rst')
                            mbrst
+  | "let " `isPrefixOf` g
+  = getAcyOfExpr rst (g ++ "\n  in ()") >>=
+    maybe (repLoop rst)
+          (\_ -> repLoop rst { letBinds = letBinds rst ++ [g] })
   | otherwise   = evalExpression rst g >>= repLoop
 
 --- Evaluate an expression w.r.t. currently loaded modules
@@ -285,7 +289,8 @@ writeMainExpFile rst imports mtype exp =
     [noMissingSigs, "module " ++ mainExpMod rst ++ " where"] ++
     map ("import " ++) allImports ++
     maybe [] (\ts -> ["main :: " ++ ts]) mtype ++
-    ["main = " ++ qualifyMain (strip exp)]
+    ["main = " ++ concatMap (++ " in\n  ") (letBinds rst)
+               ++ qualifyMain (strip exp)]
  where
   allImports = filter (/="Prelude") . nub $ currMod rst : addMods rst ++ imports
 
@@ -413,27 +418,31 @@ processSysCall rst cmd
 
 --- Process :add command
 processAdd :: ReplState -> String -> IO (Maybe ReplState)
-processAdd rst args
+processAdd rst0 args
   | null args = skipCommand "Missing module name"
-  | otherwise = Just `fmap` foldIO add rst (words args)
+  | otherwise = Just `fmap` foldIO add rst0 (map stripCurrySuffix (words args))
  where
-  add rst' m = let mdl = stripCurrySuffix m in
-    if validModuleName mdl
+  add rst m =
+    if validModuleName m
       then do
-        mbf <- lookupModuleSource (loadPaths rst') mdl
+        mbf <- lookupModuleSource (loadPaths rst) m
         case mbf of
           Nothing -> do
-            writeErrorMsg $ "Source file of module '" ++ mdl ++ "' not found"
-            return rst'
-          Just _  -> return rst' { addMods = insert mdl (addMods rst') }
-      else do writeErrorMsg $ "Illegal module name (ignored): " ++ mdl
-              return rst'
-
-  insert m []        = [m]
-  insert m ms@(n:ns)
-    | m < n     = m : ms
-    | m == n    = ms
-    | otherwise = n : insert m ns
+            writeErrorMsg $ "Source file of module '" ++ m ++ "' not found"
+            return rst
+          Just _  ->
+            if m `elem` addMods rst
+              then return rst
+              else compileCurryProgram rst m >>=
+                   maybe (return rst)
+                         (\rs' -> return rs' { addMods = insM (addMods rs') })
+      else do writeErrorMsg $ "Illegal module name (ignored): " ++ m
+              return rst
+   where
+    insM []        = [m]
+    insM ms@(n:ns) | m < n     = m : ms
+                   | m == n    = ms
+                   | otherwise = n : insM ns
 
   foldIO _ a []     = return a
   foldIO f a (x:xs) = f a x >>= \fax -> foldIO f fax xs
@@ -506,7 +515,6 @@ processFork rst args
 processHelp :: ReplState -> String -> IO (Maybe ReplState)
 processHelp rst _ = do
   printHelpOnCommands
-  putStrLn "... or type any <expression> to evaluate\n"
   return (Just rst)
 
 --- Process :interface command
@@ -619,7 +627,9 @@ printHelpOnCommands :: IO ()
 printHelpOnCommands = putStrLn $ unlines $
   [ "Basic commands (commands can be abbreviated to a prefix if unique):\n" ] ++
   formatVarVals " - "
-    [ (":load <prog>", "load program '<prog>.[l]curry' as main module")
+    [ ("<expr>"          , "evaluate expression <expr>")
+    , ("let <p> = <expr>", "add let binding for main expression")
+    , (":load <prog>", "load program '<prog>.[l]curry' as main module")
     , (":reload"     , "recompile currently loaded modules")
     , (":add  <m1> .. <mn>",
         "add modules <m1>,...,<mn> to currently loaded modules")
@@ -632,8 +642,8 @@ printHelpOnCommands = putStrLn $ unlines $
   formatVarVals " - "
     [ (":!<command>"   , "execute <command> in shell")
     , (":browse"       , "browse program and its imported modules")
-    , (":compile <m>"  , "compile module <m> (but do not load it)")
     , (":cd <dir>"     , "change current directory to <dir>")
+    , (":compile <m>"  , "compile module <m> (but do not load it)")
     , (":edit"         , "load source of currently loaded module into editor")
     , (":edit <m>"     , "load source of module <m> into editor")
     , (":fork <expr>"  , "fork new process evaluating <expr>")
@@ -811,6 +821,7 @@ showCurrentOptions rst = intercalate "\n" $ filter notNull
     , ("run-time arguments", rtsArgs rst)
     , ("verbosity         ", show (verbose rst))
     , ("prompt            ", show (prompt rst))
+    , ("let bindings      ", unlines (letBinds rst))
     , ("...............and"
       , unwordsOpts $ sortBy (\f1 f2 -> setFlag f1 <= setFlag f2) $
           [ showOnOff (showBindings rst) ++ "bindings"
@@ -1232,9 +1243,10 @@ parseCurryProgram rst curryprog tfcy = do
            >> return (Just rst))
         (\_ -> return Nothing)
 
--- Load a Curry program (parse onyl or compile it):
+-- Load a Curry program (parse only or compile it):
 loadCurryProgram :: ReplState -> String -> IO (Maybe ReplState)
-loadCurryProgram rst curryprog =
+loadCurryProgram rst0 curryprog = do
+  let rst = rst0 { letBinds = [] }
   maybe (compileCurryProgram rst curryprog)
         (parseCurryProgram rst curryprog)
         (ccTypedFC (compiler rst))

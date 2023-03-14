@@ -2,7 +2,7 @@
 --- The state of the REPL.
 ---
 --- @author  Michael Hanus
---- @version August 2022
+--- @version March 2023
 ------------------------------------------------------------------------------
 
 module REPL.State where
@@ -33,6 +33,7 @@ data ReplState = ReplState
   , preludeName  :: String     -- the name of the standard prelude
   , currMod      :: String     -- name of current main module
   , addMods      :: [String]   -- names of additionally added modules
+  , letBinds     :: [String]   -- let bindings defined as REPL input
   , mainExpMod   :: String     -- name of module to store main expressions
   , prompt       :: String     -- repl prompt shown in front of user input
   , timeOut      :: Int        -- timeout (in seconds) for executing main goal
@@ -66,6 +67,7 @@ initReplState cd = do
     , preludeName  = "Prelude"
     , currMod      = "Prelude"
     , addMods      = []
+    , letBinds     = []
     , mainExpMod   = mainmod
     , prompt       = "%s> "
     , timeOut      = 0
