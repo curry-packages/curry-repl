@@ -5,13 +5,13 @@
 ---     > cypm curry :l C2GoREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version August 2022
+--- @version November 2023
 ------------------------------------------------------------------------------
 
 module C2GoREPL where
 
 import Data.List        ( intercalate )
-import System.CurryPath ( inCurrySubdir, modNameToPath, sysLibPath )
+import System.CurryPath ( inCurrySubdir, modNameToPath )
 
 import REPL.Compiler
 import REPL.Main        ( mainREPL )
