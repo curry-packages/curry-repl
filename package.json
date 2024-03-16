@@ -20,7 +20,7 @@
     "exportedModules": [ "REPL.Main", "REPL.Compiler" ],
     "configModule": "REPL.PkgConfig",
     "source": {
-        "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/curry-repl.git",
+        "git": "https://github.com/curry-packages/curry-repl.git",
         "tag": "$version"
     }
 }
