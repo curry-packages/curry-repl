@@ -5,7 +5,7 @@
 ---     > cypm curry :l PakcsREPL.curry :save :q
 ---
 --- @author  Michael Hanus
---- @version August 2022
+--- @version June 2024
 ------------------------------------------------------------------------------
 
 module PakcsREPL where
@@ -28,7 +28,7 @@ pakcsHome = "/usr/lib/pakcs"
 pakcs :: CCDescription
 pakcs = CCDescription
   "pakcs"                                 -- the compiler name
-  (3,4,0)                                 -- the version number
+  (3,7,0)                                 -- the version number
   pakcsBanner                             -- the banner
   -- description of specific REPL options:
   [ ("-n|--nocypm",

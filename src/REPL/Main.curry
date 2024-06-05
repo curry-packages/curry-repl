@@ -521,8 +521,14 @@ processHelp rst _ = do
 processInterface :: ReplState -> String -> IO (Maybe ReplState)
 processInterface rst args = do
   modname <- getModuleName rst args
-  checkAndCallCpmTool "curry-showflat" "showflatcurry"
-    (\toolexec -> execCommandWithPath rst toolexec ["-int", modname])
+  mbshowflatbin <- getCpmTool "curry-showflat"
+  maybe (checkAndCallCpmTool "curry-showinterface" "curry-interface"
+          (\toolexec -> execCommandWithPath rst toolexec [modname]))
+        (\showflatbin ->
+          getCpmTool "curry-showinterface" >>=
+          maybe (execCommandWithPath rst showflatbin ["-int", modname])
+                (\showint -> execCommandWithPath rst showint [modname]))
+        mbshowflatbin
 
 --- Process :load command
 processLoad :: ReplState -> String -> IO (Maybe ReplState)
@@ -1336,6 +1342,21 @@ showFunctionInModule rst mod fun =
     if m==md then (m,(fn,h)):sguis
              else (m,(f,h)) : updateFun sguis md fn
 
+-- Check whether some tool installable by CPM is available, i.e.,
+-- either in the current path or in the CPM bin directory,
+-- and return its name or path.
+getCpmTool :: String -> IO (Maybe String)
+getCpmTool toolbin = do
+  excmd <- system $ "which " ++ toolbin ++ " > /dev/null"
+  if excmd == 0
+    then return $ Just toolbin
+    else do homedir <- getHomeDirectory
+            let cpmtoolfile = homedir </> ".cpm" </> "bin" </> toolbin
+            excpm <- doesFileExist cpmtoolfile
+            if excpm
+              then return $ Just cpmtoolfile
+              else return Nothing
+
 -- Check whether some CPM tool is available, i.e., either in the current
 -- path or in the CPM bin directory. If it is not available,
 -- skip the command with an error message how to install the tool from
@@ -1343,16 +1364,8 @@ showFunctionInModule rst mod fun =
 -- the last argument by passing the name of the CPM tool.
 checkAndCallCpmTool :: String -> String -> (String -> IO (Maybe ReplState))
                     -> IO (Maybe ReplState)
-checkAndCallCpmTool tool package continue = do
-  excmd <- system $ "which " ++ tool ++ " > /dev/null"
-  if excmd == 0
-    then continue tool
-    else do homedir <- getHomeDirectory
-            let cpmtoolfile = homedir </> ".cpm" </> "bin" </> tool
-            excpm <- doesFileExist cpmtoolfile
-            if excpm
-              then continue cpmtoolfile
-              else skipCommand errmsg
+checkAndCallCpmTool tool package continue =
+  getCpmTool tool >>= maybe (skipCommand errmsg) continue
  where
   errmsg = "'" ++ tool ++ "' not found. Install it by: 'cypm install " ++
            package ++ "'!"
