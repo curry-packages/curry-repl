@@ -42,8 +42,8 @@ showContext True  _             = ""
 
 --- Shows an AbstractCurry constraint in standard Curry syntax.
 showConstraint :: CConstraint -> String
-showConstraint ((_, name), ty) =
-  showIdentifier name ++ " " ++ showMonoTypeExpr' False 2 ty
+showConstraint ((_, name), ts) =
+  showIdentifier name ++ " " ++ concatMap (showMonoTypeExpr' False 2) ts
 
 --- Shows an AbstractCurry type expression in standard Curry syntax.
 --- If the first argument is True, all occurrences of type variables
