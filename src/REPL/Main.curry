@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version March 2023
+--- @version September 2024
 ------------------------------------------------------------------------------
 
 module REPL.Main where

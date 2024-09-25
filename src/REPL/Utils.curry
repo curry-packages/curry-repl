@@ -2,7 +2,7 @@
 --- Some auxiliary operations for the REPL
 ---
 --- @author  Michael Hanus
---- @version November 2022
+--- @version September 2024
 --- --------------------------------------------------------------------------
 
 module REPL.Utils
@@ -42,8 +42,8 @@ showContext True  _             = ""
 
 --- Shows an AbstractCurry constraint in standard Curry syntax.
 showConstraint :: CConstraint -> String
-showConstraint ((_, name), ts) =
-  showIdentifier name ++ " " ++ concatMap (showMonoTypeExpr' False 2) ts
+showConstraint ((_, name), ts) = unwords $
+  showIdentifier name : map (showMonoTypeExpr' False 2) ts
 
 --- Shows an AbstractCurry type expression in standard Curry syntax.
 --- If the first argument is True, all occurrences of type variables
