@@ -28,7 +28,7 @@ pakcsHome = "/usr/lib/pakcs"
 pakcs :: CCDescription
 pakcs = CCDescription
   "pakcs"                                 -- the compiler name
-  (3,7,0)                                 -- the version number
+  (3,8,0)                                 -- the version number
   pakcsBanner                             -- the banner
   -- description of specific REPL options:
   [ ("-n|--nocypm",
