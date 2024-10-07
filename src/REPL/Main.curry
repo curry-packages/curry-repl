@@ -2,7 +2,7 @@
 --- A universal REPL which can be used on top of a Curry compiler
 ---
 --- @author  Michael Hanus
---- @version March 2023
+--- @version September 2024
 ------------------------------------------------------------------------------
 
 module REPL.Main where
@@ -1193,14 +1193,14 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
  where
   defaultData qty@(CQualType (CContext dctxt) dcty) = case dctxt of
     [] -> qty
-    (qtcons, CTVar tv) : cs | qtcons == pre "Data"
+    (qtcons, [CTVar tv]) : cs | qtcons == pre "Data"
       -> defaultData (CQualType (CContext cs)
                         (substTypeVar tv (CTCons (pre "Bool")) dcty))
     _ -> qty
 
   defaultMonad qty@(CQualType (CContext dctxt) dcty) = case dctxt of
     [] -> qty
-    (qtcons, CTVar tv) : cs | qtcons `elem` map pre ["Monad","MonadFail"]
+    (qtcons, [CTVar tv]) : cs | qtcons `elem` map pre ["Monad","MonadFail"]
       -> defaultMonad (CQualType (CContext cs)
                          (substTypeVar tv (CTCons (pre "IO")) dcty))
     _ -> qty
@@ -1208,7 +1208,7 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
   defaultTExp :: [CConstraint] -> CQualTypeExpr -> CQualTypeExpr
   defaultTExp []     qty                           = qty
   defaultTExp (c:cs) (CQualType (CContext cs2) ty) = case c of
-    (("Prelude", ptype), CTVar tv) ->
+    (("Prelude", ptype), [CTVar tv]) ->
       if ptype `elem` ["Num", "Integral", "Fractional", "Floating"]
         then let defptype = if ptype `elem` ["Fractional", "Floating"]
                               then "Float"
@@ -1222,7 +1222,7 @@ defaultQualTypeExpr (CQualType (CContext ctxt) cty) =
 
   removeConstraints _  _        []       = []
   removeConstraints tv dflttype (c3:cs3) = case c3 of
-    (("Prelude", cls), CTVar tv2)
+    (("Prelude", cls), [CTVar tv2])
       | tv == tv2 && cls `elem` ["Data", "Eq", "Ord", "Read", "Show"]
       -> removeConstraints tv dflttype cs3
       | tv == tv2 && dflttype == "Int" && cls == "Enum"
