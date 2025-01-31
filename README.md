@@ -135,7 +135,7 @@ but they are implemented by passing them to the compiler.
 
 These options can also be combined. In this case the information
 is shown in subsequent lines, as shown in this example
-for [PAKCS](http://www.informatik.uni-kiel.de/~pakcs/):
+for [PAKCS](http://www.curry-lang.org/pakcs/):
 
     > pakcs --compiler-name --numeric-version --base-version
     pakcs
