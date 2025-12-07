@@ -47,11 +47,12 @@ fi
 # check arguments for appropriate settings:
 for i in $* ; do
   case $i in
-    --help | -h | -\? ) USECPM=no ;;
-    --version | -V    ) USECPM=no ;;
-    --numeric-version | --compiler-name | --base-version ) USECPM=no ;;
-    --nocypm | -n ) USECPM=no ;;
-    --noreadline ) USERLWRAP=no
+    --help | -h | -\? ) USECPM=no ; USERLWRAP=no ;;
+    --version | -V    ) USECPM=no ; USERLWRAP=no ;;
+    --numeric-version | --compiler-name | --base-version )
+                        USECPM=no ; USERLWRAP=no ;;
+    --nocypm | -n     ) USECPM=no ;;
+    --noreadline      ) USERLWRAP=no
   esac
 done
 

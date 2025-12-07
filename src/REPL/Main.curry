@@ -83,10 +83,10 @@ processArgsAndStart rst (arg:args)
   -- ignore empty arguments which can be provided by single or double quotes
   | null arg
   = processArgsAndStart rst args
-  -- ignore '--nocypm|-n' or '--noreadline'
-  -- (since they already processed by separate script to invoke the REPL)
   | arg == "--using" && not (null args)
   = processArgsAndStart rst { usingOption = head args } (tail args)
+  -- ignore '--nocypm|-n' or '--noreadline'
+  -- (since they already processed by separate script to invoke the REPL)
   | arg `elem` ["-n", "--nocypm", "--noreadline"]
   = processArgsAndStart rst args
   | arg == "-h" || arg == "--help" || arg == "-?"
