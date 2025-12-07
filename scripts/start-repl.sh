@@ -52,7 +52,7 @@ for i in $* ; do
     --numeric-version | --compiler-name | --base-version )
                         USECPM=no ; USERLWRAP=no ;;
     --nocypm | -n     ) USECPM=no ;;
-    --noreadline      ) USERLWRAP=no
+    --noreadline      ) USERLWRAP=no ;;
   esac
 done
 
